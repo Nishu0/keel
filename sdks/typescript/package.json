@@ -1,0 +1,17 @@
+{
+  "name": "@keel/sdk",
+  "version": "0.1.0",
+  "description": "Client for the keel api: start runs, stream their events, approve tool calls.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p .",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  },
+  "license": "MIT"
+}
