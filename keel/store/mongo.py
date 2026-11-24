@@ -16,14 +16,8 @@ from pymongo.errors import DuplicateKeyError
 
 from keel.core.agent import AgentConfig
 from keel.core.events import Event
-from keel.core.status import TERMINAL_STATUSES, RunStatus
+from keel.core.status import RELEASES_LEASE, RunStatus
 from keel.store.base import AuditEntry, Lease, LeaseLost, RunDoc, SeqConflict, ToolCallDoc
-
-RELEASES_LEASE = TERMINAL_STATUSES | {
-    RunStatus.QUEUED,
-    RunStatus.WAITING_FOR_APPROVAL,
-    RunStatus.NEEDS_REVIEW,
-}
 
 
 def _now() -> datetime:

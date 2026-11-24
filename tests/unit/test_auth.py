@@ -166,9 +166,10 @@ async def test_api_keys_work_until_revoked(app):
 async def test_invites_need_the_invited_address(app):
     owner = await _signed_in(app, "ana@halyard.dev")
     org_id = (await owner.get("/v1/me")).json()["org"]["id"]
-    assert (
-        await owner.post("/v1/members/invite", json={"email": "ira@halyard.dev", "role": "admin"})
-    ).status_code == 201
+    invite = {"email": "ira@halyard.dev", "role": "admin"}
+    assert (await owner.post("/v1/members/invite", json=invite)).status_code == 402  # free plan: one seat
+    await app.state.keel.accounts.update_org(org_id, plan="pro")
+    assert (await owner.post("/v1/members/invite", json=invite)).status_code == 201
     token = re.search(r"/invites/([^/]+)/accept", app.state.keel.mailer.sent[-1][2]).group(1)
 
     intruder = await _signed_in(app, "eve@elsewhere.dev")

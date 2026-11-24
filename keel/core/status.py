@@ -23,7 +23,7 @@ TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
     S.RUNNING: frozenset(
         {S.COMPLETED, S.FAILED, S.CANCELLED, S.WAITING, S.WAITING_FOR_APPROVAL, S.QUEUED, S.NEEDS_REVIEW}
     ),
-    S.WAITING: frozenset({S.RUNNING, S.CANCELLED, S.FAILED}),
+    S.WAITING: frozenset({S.RUNNING, S.QUEUED, S.CANCELLED, S.FAILED}),
     S.WAITING_FOR_APPROVAL: frozenset({S.QUEUED, S.CANCELLED}),
     S.NEEDS_REVIEW: frozenset({S.QUEUED, S.FAILED, S.CANCELLED}),
     S.COMPLETED: frozenset(),
@@ -32,6 +32,9 @@ TRANSITIONS: dict[RunStatus, frozenset[RunStatus]] = {
 }
 
 TERMINAL_STATUSES = frozenset({S.COMPLETED, S.FAILED, S.CANCELLED})
+
+# statuses where no worker should be holding the run
+RELEASES_LEASE = TERMINAL_STATUSES | {S.QUEUED, S.WAITING, S.WAITING_FOR_APPROVAL, S.NEEDS_REVIEW}
 
 
 class InvalidTransition(Exception):

@@ -9,6 +9,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr
 
 from keel.accounts.models import Membership, Role, Secret
+from keel.accounts.plans import limits
 from keel.accounts.service import AuthError
 from keel.core.ids import new_id
 
@@ -42,11 +43,17 @@ class InviteIn(BaseModel):
 
 @router.post("/members/invite", status_code=201)
 async def invite(body: InviteIn, c: Admin, st: State) -> dict[str, str]:
+    org = await st.accounts.get_org(c.org_id)
+    if org is not None:
+        seats = limits(org.plan).seats
+        taken = len(await st.accounts.list_members(c.org_id)) + len(await st.accounts.list_invites(c.org_id))
+        if seats is not None and taken >= seats:
+            plural = "s" if seats != 1 else ""
+            raise HTTPException(402, f"the {org.plan} plan has {seats} seat{plural}; upgrade to invite more")
     try:
         token = await st.svc.invite(c.org_id, body.email, body.role, c.actor)
     except AuthError as e:
         raise HTTPException(422, str(e)) from e
-    org = await st.accounts.get_org(c.org_id)
     link = f"{st.public_url.rstrip('/')}/api/keel/v1/invites/{token}/accept"
     await st.mailer.send(
         body.email,

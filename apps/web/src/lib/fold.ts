@@ -17,6 +17,7 @@ export interface ToolCallView {
   approval?: { requested_at: string; by?: string; granted_at?: string; denied?: boolean };
   sandbox?: { image: string; runtime: string; warm: boolean };
   reason?: string;
+  child_run_id?: string; // set when this call handed work to another agent
 }
 
 export interface ResumeView {
@@ -134,8 +135,17 @@ export function fold(events: RunEvent[]): RunView {
         c.sandbox = p.sandbox as ToolCallView["sandbox"];
         break;
       }
+      case "handoff.started": {
+        const c = call(step(e), p);
+        c.state = "running";
+        c.effect = "pure";
+        c.input = { task: p.task };
+        c.child_run_id = str(p.child_run_id);
+        break;
+      }
       case "tool.completed": {
         const c = call(step(e), p);
+        if (str(p.child_run_id)) c.child_run_id = str(p.child_run_id);
         c.state = "completed";
         c.output = p.output;
         c.duration_ms = num(p.duration_ms);

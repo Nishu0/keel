@@ -13,8 +13,16 @@ export function ms(d: number | null | undefined): string {
   return `${Math.floor(m / 60)}h ${(m % 60).toString().padStart(2, "0")}m`;
 }
 
+// 1.2k, 32.8M, 100M, 1B: as short as the number allows, no trailing zeros
+const trim = (x: number, digits: number) => String(Number(x.toFixed(digits)));
 export const tokens = (n: number) =>
-  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`;
+  n >= 1_000_000_000
+    ? `${trim(n / 1_000_000_000, 2)}B`
+    : n >= 1_000_000
+      ? `${trim(n / 1_000_000, 2)}M`
+      : n >= 1000
+        ? `${trim(n / 1000, 1)}k`
+        : `${n}`;
 
 export const usd = (n: number) => (n === 0 ? "$0" : n < 0.01 ? "<$0.01" : `$${n.toFixed(2)}`);
 

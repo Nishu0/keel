@@ -34,7 +34,9 @@ class Worker:
         heartbeat_s: float = HEARTBEAT_S,
         redactor: Redactor | None = None,
         tools_for: Callable[[str], Awaitable[Registry]] | None = None,
+        quota: Callable[[str], Awaitable[str | None]] | None = None,
     ) -> None:
+        self.quota = quota
         self.redactor = redactor
         # builds keel's tools plus the org's own (webhooks, mcp) for each run
         self.tools_for = tools_for
@@ -62,6 +64,7 @@ class Worker:
             run_id=run_id,
             worker_id=self.id,
             redactor=self.redactor,
+            quota=self.quota,
         )
         task = asyncio.create_task(driver.drive())
         beat = asyncio.create_task(self._heartbeat(org, run_id, task))
@@ -99,6 +102,7 @@ async def serve(
     concurrency: int = 4,
     poll_s: float = 0.5,
     scheduler: FairScheduler | None = None,
+    concurrency_for: Callable[[str], Awaitable[int]] | None = None,
 ) -> None:
     """Pick up queued runs fairly across orgs and sweep expired leases until ``stop`` is set."""
     sched = scheduler or FairScheduler()
@@ -109,7 +113,11 @@ async def serve(
             log.info("requeued %s (lease expired)", rid)
         if len(active) < concurrency:
             # look past the head of the queue so one busy org can't fill every slot
-            for run in sched.pick(await store.queued(200), concurrency - len(active)):
+            queued = await store.queued(200)
+            if concurrency_for:
+                caps = {o: await concurrency_for(o) for o in {r.org_id for r in queued}}
+                sched.limit_for = lambda o, caps=caps: caps.get(o, 20)
+            for run in sched.pick(queued, concurrency - len(active)):
                 agent = await store.get_agent(run.org_id, run.agent_id)
                 if agent is None:
                     log.warning("run %s references missing agent %s", run.id, run.agent_id)

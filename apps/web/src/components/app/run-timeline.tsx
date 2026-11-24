@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertTriangle, Check, ChevronRight, Clock, CornerDownRight, Hand, Loader2, RotateCcw, ShieldCheck, X } from "lucide-react";
-import { createContext, useContext, useMemo, useState } from "react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Clock, CornerDownRight, Hand, Loader2, Pause, Play, RotateCcw, ShieldCheck, SkipBack, SkipForward, X } from "lucide-react";
+import Link from "next/link";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { fold, type CallState, type StepView, type ToolCallView } from "@/lib/fold";
 import { clock, cx, ms, tokens, usd } from "@/lib/format";
 import { useRunEvents, type Source } from "@/lib/live";
@@ -12,7 +13,7 @@ import { Json } from "./json";
 
 const RunCtx = createContext({ runId: "", ended: false });
 
-type Tab = "steps" | "events";
+type Tab = "steps" | "events" | "replay";
 
 export function RunTimeline({ runId, events: initial, model }: { runId: string; events: RunEvent[]; model: string }) {
   const { events, source } = useRunEvents(runId, initial);
@@ -39,13 +40,13 @@ export function RunTimeline({ runId, events: initial, model }: { runId: string; 
     <RunCtx.Provider value={{ runId, ended: !!view.final }}>
     <section aria-label="Run timeline">
       <div className="flex items-center gap-1 border-b border-rule pb-2.5">
-        {(["steps", "events"] as const).map((t) => (
+        {(["steps", "events", "replay"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={cx("h-7 rounded-md px-2.5 text-[13px]", tab === t ? "bg-wash font-medium text-ink" : "text-muted-foreground hover:text-ink")}
           >
-            {t === "steps" ? `Steps ${view.steps.length}` : `Event log ${events.length}`}
+            {t === "steps" ? `Steps ${view.steps.length}` : t === "events" ? `Event log ${events.length}` : "Replay"}
           </button>
         ))}
         <SourceBadge source={source} />
@@ -66,8 +67,10 @@ export function RunTimeline({ runId, events: initial, model }: { runId: string; 
           ))}
           {view.final && <Final type={view.final.type} payload={view.final.payload} ts={view.ended_at!} />}
         </ol>
-      ) : (
+      ) : tab === "events" ? (
         <EventLog events={events} />
+      ) : (
+        <Replay events={events} model={model} />
       )}
     </section>
     </RunCtx.Provider>
@@ -282,6 +285,15 @@ function CallBlock({ call: c }: { call: ToolCallView }) {
           </ActionButton>
         </div>
       )}
+      {c.child_run_id && (
+        <p className="mb-3 flex items-center gap-2 text-[13px] text-ink-2">
+          <CornerDownRight className="size-3.5 text-muted-foreground" />
+          {c.state === "running" ? "Handed to another agent; this run waits for its answer." : "Answered by another agent."}
+          <Link href={`/app/runs/${c.child_run_id}`} className="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground">
+            Open child run
+          </Link>
+        </p>
+      )}
       {c.idempotency_key && (
         <p className="mb-3 flex items-center gap-2 text-[12.5px] text-muted-foreground">
           <ShieldCheck className="size-3.5 text-st-completed" />
@@ -361,6 +373,137 @@ function Final({ type, payload, ts }: { type: string; payload: Record<string, un
       </div>
     </li>
   );
+}
+
+/* ---------------- replay ---------------- */
+
+/** Step through a run one event at a time, the way a debugger steps through code. */
+function Replay({ events, model }: { events: RunEvent[]; model: string }) {
+  const [at, setAt] = useState(events.length); // how many events have "happened"
+  const [playing, setPlaying] = useState(false);
+  const n = events.length;
+  const cur = Math.min(Math.max(at, 1), n);
+  const view = useMemo(() => fold(events.slice(0, cur)), [events, cur]);
+  const e = events[cur - 1];
+  const t0 = events[0] ? Date.parse(events[0].ts) : 0;
+
+  useEffect(() => {
+    if (!playing) return;
+    if (cur >= n) {
+      const id = setTimeout(() => setPlaying(false), 0);
+      return () => clearTimeout(id);
+    }
+    const id = setTimeout(() => setAt(cur + 1), 450);
+    return () => clearTimeout(id);
+  }, [playing, cur, n]);
+
+  // keyboard shortcuts work anywhere on the page while replay is open, except in form fields
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      const t = ev.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      const to = (k: number) => {
+        ev.preventDefault();
+        setPlaying(false);
+        setAt(Math.min(Math.max(k, 1), n));
+      };
+      if (ev.key === "ArrowRight") to(cur + 1);
+      else if (ev.key === "ArrowLeft") to(cur - 1);
+      else if (ev.key === "Home") to(1);
+      else if (ev.key === "End") to(n);
+      else if (ev.key === " ") {
+        ev.preventDefault();
+        if (cur >= n) setAt(1);
+        setPlaying((p) => !p);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [cur, n]);
+
+  if (!n) return <p className="mt-6 text-[14px] text-muted-foreground">Nothing to replay yet.</p>;
+
+  const go = (k: number) => {
+    setPlaying(false);
+    setAt(Math.min(Math.max(k, 1), n));
+  };
+  const btn = "flex size-8 items-center justify-center rounded-md border border-border text-ink-2 hover:bg-wash hover:text-foreground disabled:opacity-40";
+
+  return (
+    <div className="mt-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <button className={btn} onClick={() => go(1)} disabled={cur <= 1} aria-label="First event"><SkipBack className="size-3.5" /></button>
+        <button className={btn} onClick={() => go(cur - 1)} disabled={cur <= 1} aria-label="Previous event"><ChevronLeft className="size-4" /></button>
+        <button
+          className="flex h-8 items-center gap-1.5 rounded-md bg-foreground px-3 text-[13px] font-medium text-background"
+          onClick={() => {
+            if (cur >= n) setAt(1);
+            setPlaying((p) => !p);
+          }}
+        >
+          {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+          {playing ? "Pause" : cur >= n ? "Replay" : "Play"}
+        </button>
+        <button className={btn} onClick={() => go(cur + 1)} disabled={cur >= n} aria-label="Next event"><ChevronRight className="size-4" /></button>
+        <button className={btn} onClick={() => go(n)} disabled={cur >= n} aria-label="Last event"><SkipForward className="size-3.5" /></button>
+        <input
+          type="range"
+          min={1}
+          max={n}
+          value={cur}
+          onChange={(ev) => go(Number(ev.target.value))}
+          aria-label="Position in the event log"
+          className="mx-2 min-w-[160px] flex-1 accent-[var(--foreground)]"
+        />
+        <span className="tnum text-[12.5px] text-muted-foreground">
+          event {cur} of {n} · +{ms(Date.parse(e.ts) - t0)}
+        </span>
+      </div>
+      <p className="mt-2 text-[12px] text-faint">Arrow keys step, space plays. Everything below is rebuilt from the first {cur} events.</p>
+
+      <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+        <ol>
+          {view.steps.map((s, i) => (
+            <Step key={s.n} step={s} model={model} open={s.n === e.step} onToggle={() => {}} last={i === view.steps.length - 1 && !view.final} />
+          ))}
+          {view.final && <Final type={view.final.type} payload={view.final.payload} ts={view.ended_at!} />}
+        </ol>
+        <aside className="self-start rounded-lg border border-border lg:sticky lg:top-20">
+          <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+            <Mono className="text-[12px] text-faint">#{e.seq}</Mono>
+            <Mono className="text-[13px] text-foreground">{e.type}</Mono>
+            <span className="tnum ml-auto text-[12px] text-faint">{clock(e.ts)}</span>
+          </div>
+          <div className="max-h-[460px] overflow-auto px-4 py-3">
+            <p className="mb-2 text-[12.5px] text-muted-foreground">{explain(e)}</p>
+            <Json value={e.payload} />
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function explain(e: RunEvent): string {
+  const p = e.payload as Record<string, unknown>;
+  switch (e.type) {
+    case "run.created": return "The run was queued with its input.";
+    case "run.started": return `Worker ${p.worker} took the lease and started from the beginning.`;
+    case "run.resumed": return `Worker ${p.worker ?? p.to_worker} picked the run up and rebuilt its state from ${p.replayed_events} earlier events.`;
+    case "model.requested": return `keel asked ${p.model ?? "the model"} for the next step.`;
+    case "model.completed": return "The model answered. This response is stored, so a resume never pays for it again.";
+    case "tool.started": return p.idempotency_key ? `Sent with idempotency key ${p.idempotency_key}.` : "A tool call started.";
+    case "tool.completed": return p.reconciled ? "Found by asking the tool after a crash; not sent again." : "The tool returned. Its output is stored with the call id.";
+    case "tool.failed": return p.in_doubt ? "keel couldn't tell whether this landed, so it stopped to ask a person." : "The tool failed and the model was told.";
+    case "approval.requested": return "The run paused until a person decides.";
+    case "approval.granted": return "Approved; the run was queued again.";
+    case "approval.denied": return "Denied; the model was told.";
+    case "handoff.started": return "Work went to another agent. This run waits without holding a worker.";
+    case "handoff.completed": return "The other agent finished; its answer became the tool result.";
+    case "run.completed": return "The run finished.";
+    case "limit.exceeded": return "A limit ended the run at a step boundary.";
+    default: return "";
+  }
 }
 
 /* ---------------- raw log ---------------- */

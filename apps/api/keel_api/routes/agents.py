@@ -19,6 +19,8 @@ class AgentIn(BaseModel):
     system_prompt: str = ""
     tools: list[str] = Field(default_factory=list)
     approval_required: list[str] = Field(default_factory=list)
+    description: str = ""
+    agents: list[str] = Field(default_factory=list)  # agents this one may hand work to
     limits: Limits = Field(default_factory=Limits)
 
 
@@ -28,6 +30,9 @@ async def create_or_version(body: AgentIn, c: Developer, st: State) -> AgentConf
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "approval_required must be a subset of tools"
         )
+    for aid in body.agents:
+        if aid == body.id or await st.store.get_agent(c.org_id, aid) is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"no agent {aid} to hand off to")
     version = 1
     if body.id:
         prev = await st.store.get_agent(c.org_id, body.id)

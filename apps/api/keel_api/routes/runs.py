@@ -77,6 +77,10 @@ async def create_run(body: RunIn, c: Developer, st: State) -> RunOut:
     agent = await st.store.get_agent(c.org_id, body.agent_id)
     if agent is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "agent not found")
+    from .billing import quota_problem
+
+    if problem := await quota_problem(st, c):
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, problem)
     run = RunDoc(id=new_id("run"), org_id=c.org_id, agent_id=body.agent_id, input=body.input)
     await st.store.create_run(run)
     await _append(st.store, c, run.id, EventType.RUN_CREATED, input=body.input, agent_version=agent.version)

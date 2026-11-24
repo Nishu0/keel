@@ -18,6 +18,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/app\/settings\/members/, "Members"],
   [/^\/app\/settings\/keys/, "API keys"],
   [/^\/app\/settings\/secrets/, "Secrets"],
+  [/^\/app\/settings\/billing/, "Billing"],
 ]
 
 export function SiteHeader() {

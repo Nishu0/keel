@@ -14,7 +14,7 @@ from typing import Any
 
 from keel.core.agent import AgentConfig
 from keel.core.events import Event, utcnow
-from keel.core.status import TERMINAL_STATUSES, RunStatus
+from keel.core.status import RELEASES_LEASE, RunStatus
 from keel.store.base import AuditEntry, Lease, LeaseLost, RunDoc, SeqConflict, ToolCallDoc
 
 
@@ -68,11 +68,7 @@ class MemoryStore:
             if worker_id is not None:
                 self._check_lease(r, worker_id)
             r.status = status
-            if status in TERMINAL_STATUSES or status in (
-                RunStatus.QUEUED,
-                RunStatus.WAITING_FOR_APPROVAL,
-                RunStatus.NEEDS_REVIEW,
-            ):
+            if status in RELEASES_LEASE:
                 r.lease = None
 
     def _check_lease(self, r: RunDoc, worker_id: str) -> None:

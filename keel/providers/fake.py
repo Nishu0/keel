@@ -58,7 +58,13 @@ class DemoProvider:
             t = tools[0]
             return Completion(
                 text=f"Calling {t.name} before I answer.",
-                tool_calls=[ToolCall(name=t.name, input={})],
+                # a handoff needs a task; pass the run's own task along
+                tool_calls=[
+                    ToolCall(
+                        name=t.name,
+                        input={"task": messages[0].content} if t.name.startswith("handoff__") else {},
+                    )
+                ],
                 usage=usage,
             )
         if results:

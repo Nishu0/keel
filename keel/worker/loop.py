@@ -14,17 +14,19 @@ next one knows exactly what happened and what is in doubt.
 from __future__ import annotations
 
 import asyncio
+import re
 import time
+from collections.abc import Awaitable, Callable
 from enum import StrEnum
 from typing import Any
 
 from keel.core.agent import AgentConfig
 from keel.core.events import Event, EventType
 from keel.core.fold import RunState, apply, fold
-from keel.core.status import RunStatus
-from keel.providers.base import Provider, ToolCall
+from keel.core.status import TERMINAL_STATUSES, RunStatus
+from keel.providers.base import Provider, ToolCall, ToolSpec
 from keel.security.redact import Redactor
-from keel.store.base import Store, ToolCallDoc
+from keel.store.base import RunDoc, Store, ToolCallDoc
 from keel.tools.registry import Effect, Registry, ToolInputError
 
 
@@ -34,7 +36,31 @@ class Outcome(StrEnum):
     CANCELLED = "cancelled"
     LIMIT_EXCEEDED = "limit_exceeded"
     WAITING_FOR_APPROVAL = "waiting_for_approval"
+    WAITING = "waiting"  # a child run is working on a handoff
     NEEDS_REVIEW = "needs_review"
+
+
+class Handoff:
+    """Another agent, offered to the model as a tool that takes a task."""
+
+    def __init__(self, agent: AgentConfig) -> None:
+        self.agent = agent
+        self.name = f"handoff__{re.sub(r'[^a-zA-Z0-9_-]+', '_', agent.name)}"[:64]
+
+    @property
+    def spec(self) -> ToolSpec:
+        about = self.agent.description or self.agent.system_prompt.split("\n")[0]
+        return ToolSpec(
+            name=self.name,
+            description=f"Give the {self.agent.name} agent a task and get its final answer. {about}".strip(),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "task": {"type": "string", "description": "What the other agent should do, in full."}
+                },
+                "required": ["task"],
+            },
+        )
 
 
 class ToolError(Exception):
@@ -57,8 +83,10 @@ class RunDriver:
         run_id: str,
         worker_id: str,
         redactor: Redactor | None = None,
+        quota: Callable[[str], Awaitable[str | None]] | None = None,
     ) -> None:
         self.redactor = redactor or Redactor()
+        self.quota = quota
         self.store = store
         self.provider = provider
         self.registry = registry
@@ -67,6 +95,7 @@ class RunDriver:
         self.run_id = run_id
         self.worker_id = worker_id
         self.state = RunState()
+        self.handoffs: dict[str, Handoff] = {}
 
     # ---------- events ----------
 
@@ -86,13 +115,29 @@ class RunDriver:
     async def _finish(self, type: EventType, status: RunStatus, outcome: Outcome, **payload: Any) -> Outcome:
         await self.emit(type, **payload)
         await self.store.set_status(self.org_id, self.run_id, status, self.worker_id)
+        await self._wake_parent()
         return outcome
+
+    async def _wake_parent(self) -> None:
+        """A finished child puts its parent back in the queue to pick up the result."""
+        me = await self.store.get_run(self.org_id, self.run_id)
+        if me is None or not me.parent_run_id:
+            return
+        parent = await self.store.get_run(self.org_id, me.parent_run_id)
+        if parent is not None and parent.status == RunStatus.WAITING:
+            await self.store.set_status(self.org_id, parent.id, RunStatus.QUEUED)
 
     # ---------- loop ----------
 
     async def drive(self) -> Outcome:
         events = await self.store.events(self.org_id, self.run_id)
         self.state = fold(events)
+        self.handoffs = {}
+        for aid in self.agent.agents:
+            child = await self.store.get_agent(self.org_id, aid)
+            if child is not None and child.id != self.agent.id:
+                h = Handoff(child)
+                self.handoffs[h.name] = h
         if self.state.done:
             return _terminal_outcome(self.state.terminal)
 
@@ -123,13 +168,21 @@ class RunDriver:
                     return await self._limit("max_tokens", limits.max_tokens)
                 if time.monotonic() - started_at > limits.timeout_s:
                     return await self._limit("timeout_s", limits.timeout_s)
+                if self.quota and (reason := await self.quota(self.org_id)):
+                    return await self._finish(
+                        EventType.LIMIT_EXCEEDED,
+                        RunStatus.FAILED,
+                        Outcome.LIMIT_EXCEEDED,
+                        limit="plan",
+                        reason=reason,
+                    )
 
                 step = self.state.step + 1
                 await self.emit(EventType.MODEL_REQUESTED, step=step, model=self.agent.model)
                 try:
                     comp = await self.provider.complete(
                         self.state.messages,
-                        self.registry.specs(self.agent.tools),
+                        self.registry.specs(self.agent.tools) + [h.spec for h in self.handoffs.values()],
                         self.agent.model,
                         self.agent.max_output_tokens,
                         system=self.agent.system_prompt,
@@ -177,6 +230,8 @@ class RunDriver:
         cid = tc.id
         assert cid is not None
         s = self.state
+        if tc.name in self.handoffs:
+            return await self._handoff(tc, self.handoffs[tc.name])
         tool = self.registry.get(tc.name)
 
         if tool is None or tc.name not in self.agent.tools:
@@ -256,6 +311,83 @@ class RunDriver:
             duration_ms=int((time.monotonic() - t0) * 1000),
         )
         return None
+
+    async def _handoff(self, tc: ToolCall, h: Handoff) -> Outcome | None:
+        """Start (or check on) a child run for this call. The child id comes from the call id,
+        so a resumed parent finds the same child instead of starting another."""
+        cid = tc.id
+        assert cid is not None
+        task = tc.input.get("task") if isinstance(tc.input, dict) else None
+        if not isinstance(task, str) or not task.strip():
+            await self.emit(EventType.TOOL_FAILED, call_id=cid, name=tc.name, error="a handoff needs a task")
+            return None
+        child_id = f"run_{cid.removeprefix('tc_')}"
+        child = await self.store.get_run(self.org_id, child_id)
+
+        if child is None:
+            await self.store.create_run(
+                RunDoc(
+                    id=child_id,
+                    org_id=self.org_id,
+                    agent_id=h.agent.id,
+                    input={"task": task},
+                    parent_run_id=self.run_id,
+                )
+            )
+            await self.store.append(
+                Event(
+                    org_id=self.org_id,
+                    run_id=child_id,
+                    seq=1,
+                    type=EventType.RUN_CREATED,
+                    payload={
+                        "input": {"task": task},
+                        "agent_version": h.agent.version,
+                        "parent_run_id": self.run_id,
+                    },
+                ),
+                None,
+            )
+            await self.emit(
+                EventType.HANDOFF_STARTED,
+                call_id=cid,
+                name=tc.name,
+                agent_id=h.agent.id,
+                child_run_id=child_id,
+                task=task,
+            )
+            child = await self.store.get_run(self.org_id, child_id)
+
+        if child is not None and child.status in TERMINAL_STATUSES:
+            final = fold(await self.store.events(self.org_id, child_id))
+            await self.emit(
+                EventType.HANDOFF_COMPLETED, call_id=cid, child_run_id=child_id, status=child.status.value
+            )
+            if child.status == RunStatus.COMPLETED:
+                await self.emit(
+                    EventType.TOOL_COMPLETED,
+                    call_id=cid,
+                    name=tc.name,
+                    output=final.output,
+                    child_run_id=child_id,
+                )
+            else:
+                await self.emit(
+                    EventType.TOOL_FAILED,
+                    call_id=cid,
+                    name=tc.name,
+                    error=f"{h.agent.name} {child.status.value}",
+                    child_run_id=child_id,
+                )
+            return None
+
+        # the child is still going: wait without holding a worker
+        await self.store.set_status(self.org_id, self.run_id, RunStatus.WAITING, self.worker_id)
+        # it may have finished between our check and the status change; if so, wake now
+        child = await self.store.get_run(self.org_id, child_id)
+        if child is not None and child.status in TERMINAL_STATUSES:
+            await self.store.set_status(self.org_id, self.run_id, RunStatus.QUEUED)
+        return Outcome.WAITING
 
     async def _resolve_in_doubt(
         self, tc: ToolCall, reconcile: Any, error: str | None = None

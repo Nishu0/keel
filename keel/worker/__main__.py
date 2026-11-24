@@ -86,14 +86,18 @@ async def main() -> None:
     async def tools_for(org_id: str):
         return await registry_for(org_id, registry, accounts, sealer)
 
-    worker = Worker(worker_id, store, _provider(), registry, tools_for=tools_for)
+    from keel.accounts.enforce import concurrency_for, quota_check
+
+    worker = Worker(
+        worker_id, store, _provider(), registry, tools_for=tools_for, quota=quota_check(accounts, store)
+    )
     concurrency = int(os.environ.get("KEEL_WORKER_CONCURRENCY", "4"))
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
 
-    await serve(store, worker, stop, concurrency)
+    await serve(store, worker, stop, concurrency, concurrency_for=concurrency_for(accounts))
 
 
 if __name__ == "__main__":

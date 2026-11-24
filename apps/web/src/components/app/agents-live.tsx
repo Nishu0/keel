@@ -76,6 +76,7 @@ export function LiveAgents({ demo }: { demo: React.ReactNode }) {
       )}
       {open && (
         <NewAgentDialog
+          existing={agents}
           onClose={() => setOpen(false)}
           onCreated={() => {
             setOpen(false);
@@ -87,13 +88,14 @@ export function LiveAgents({ demo }: { demo: React.ReactNode }) {
   );
 }
 
-function NewAgentDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function NewAgentDialog({ existing, onClose, onCreated }: { existing: ApiAgent[]; onClose: () => void; onCreated: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [name, setName] = useState("");
   const [model, setModel] = useState(MODELS[0]);
   const [prompt, setPrompt] = useState("");
   const [tools, setTools] = useState<string[]>(["web_fetch"]);
   const [gated, setGated] = useState<string[]>([]);
+  const [handoffs, setHandoffs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -111,7 +113,14 @@ function NewAgentDialog({ onClose, onCreated }: { onClose: () => void; onCreated
     const r = await fetch("/api/keel/v1/agents", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name, model, system_prompt: prompt, tools, approval_required: gated.filter((g) => tools.includes(g)) }),
+      body: JSON.stringify({
+        name,
+        model,
+        system_prompt: prompt,
+        tools,
+        approval_required: gated.filter((g) => tools.includes(g)),
+        agents: handoffs,
+      }),
     }).catch(() => null);
     setBusy(false);
     if (!r?.ok) {
@@ -202,6 +211,29 @@ function NewAgentDialog({ onClose, onCreated }: { onClose: () => void; onCreated
             ))}
           </ul>
         </fieldset>
+
+        {existing.length > 0 && (
+          <fieldset className="mt-4">
+            <legend className="mb-1.5 text-[13px] text-ink-2">Can hand work to</legend>
+            <div className="flex flex-wrap gap-2">
+              {existing.map((a) => {
+                const on = handoffs.includes(a.id);
+                return (
+                  <button
+                    type="button"
+                    key={a.id}
+                    aria-pressed={on}
+                    onClick={() => setHandoffs(on ? handoffs.filter((x) => x !== a.id) : [...handoffs, a.id])}
+                    className={`h-8 rounded-full border px-3 font-mono text-[12.5px] transition-colors ${on ? "border-white/40 bg-white/[0.08] text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
+                  >
+                    {a.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1.5 text-[12px] text-muted-foreground">Each one becomes a handoff tool. The child runs on its own and its answer comes back as the result.</p>
+          </fieldset>
+        )}
 
         {error && <p role="alert" className="mt-3 text-[13px] text-st-failed">{error}</p>}
 
