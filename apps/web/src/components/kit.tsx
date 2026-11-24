@@ -3,21 +3,33 @@ import type { ComponentProps, ReactNode } from "react";
 import { cx, isLive, statusColor, statusLabel } from "@/lib/format";
 import type { Effect, RunStatus } from "@/lib/types";
 
-/* keel mark: a hull in section, the keel running down the centre */
+/*
+  The keel mark: a lowercase k drawn as a boat. The stem is the mast line, the
+  arm is a sail, and the leg is a keel blade swept aft into its ballast foot.
+  Keep in sync with src/app/icon.svg.
+*/
+export const MARK_PATHS = [
+  "M4 2.5h3.7v19H4z", // stem
+  "M9.3 11.6 19.6 2.5v9.1z", // sail
+  "M9.3 13.2h5.1l4.9 6.4h-5.3z", // keel blade
+  "M12.1 19.6h8.4a1.3 1.3 0 0 1 0 2.6h-7.1a1.3 1.3 0 0 1-1.3-1.3z", // ballast foot
+];
+
 export function Mark({ className = "size-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden fill="none">
-      <path d="M3 7.5h18l-3.2 6.6a6 6 0 0 1-5.4 3.4h-.8a6 6 0 0 1-5.4-3.4L3 7.5Z" fill="currentColor" />
-      <path d="M12 17.5V22" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+    <svg viewBox="0 0 24 24" className={className} aria-hidden fill="currentColor">
+      {MARK_PATHS.map((d) => (
+        <path key={d} d={d} />
+      ))}
     </svg>
   );
 }
 
 export function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cx("inline-flex items-center gap-2 text-ink", className)}>
-      <Mark className="size-[18px]" />
-      <span className="font-serif text-[22px] leading-none tracking-tight">keel</span>
+    <span className={cx("inline-flex items-center gap-[7px] text-foreground", className)}>
+      <Mark className="size-[19px]" />
+      <span className="text-[20px] font-semibold leading-none tracking-[-0.045em]">keel</span>
     </span>
   );
 }

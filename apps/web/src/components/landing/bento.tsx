@@ -1,4 +1,4 @@
-import { Check, CornerDownRight, GitBranch, Hand, Plug, RotateCcw, ShieldCheck, Terminal, X, Zap } from "lucide-react";
+import { Check, CornerDownRight, GitBranch, Hand, Plug, RotateCcw, ShieldCheck, Sparkles, Terminal, X, Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import { cx } from "@/lib/format";
 import { EffectTag, Mark, Mono } from "../kit";
@@ -182,7 +182,7 @@ function ApprovalMock() {
 
 function ConnectionsMock() {
   const rows: [ReactNode, string, string][] = [
-    [<Mark key="m" className="size-4" />, "Claude", "Anthropic API · Bedrock"],
+    [<Sparkles key="m" className="size-4" />, "Claude", "Anthropic API · Bedrock"],
     [<GitBranch key="g" className="size-4" />, "Webhook tools", "HMAC signed"],
     [<Plug key="p" className="size-4" />, "MCP servers", "Listed on connect"],
     [<Terminal key="t" className="size-4" />, "Python and shell", "gVisor, no network"],
