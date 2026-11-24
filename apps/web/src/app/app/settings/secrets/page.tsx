@@ -1,7 +1,7 @@
 import { Lock, Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/app/page-header";
-import { Button, Mono } from "@/components/ui";
+import { Button, Mono } from "@/components/kit";
 
 export const metadata: Metadata = { title: "Secrets" };
 
@@ -23,7 +23,7 @@ export default function SecretsPage() {
       <div className="px-6 py-6 lg:px-10">
         <div className="overflow-hidden rounded-lg border border-rule-strong bg-raised">
           <table className="w-full text-left text-[13.5px]">
-            <thead className="text-[12.5px] text-muted">
+            <thead className="text-[12.5px] text-muted-foreground">
               <tr className="border-b border-rule">
                 <th className="px-4 py-2 font-normal">Name</th>
                 <th className="hidden px-4 py-2 font-normal md:table-cell">Used by</th>
@@ -42,14 +42,14 @@ export default function SecretsPage() {
                     <span className="mt-1 block pl-[22px] font-mono text-[12px] tracking-widest text-faint">••••••••••••</span>
                   </td>
                   <td className="hidden px-4 py-3 text-ink-2 md:table-cell">{s.used}</td>
-                  <td className="hidden px-4 py-3 text-muted sm:table-cell">{s.updated} by {s.by}</td>
+                  <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">{s.updated} by {s.by}</td>
                   <td className="px-4 py-3 text-right"><Button size="sm" variant="ghost">Replace</Button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="mt-4 max-w-[70ch] text-[13px] text-muted">
+        <p className="mt-4 max-w-[70ch] text-[13px] text-muted-foreground">
           Each org has its own data key, wrapped by AWS KMS. Secrets are sealed with AES-GCM under that key. Event payloads pass through a redactor that
           masks known secret values before they&apos;re stored.
         </p>

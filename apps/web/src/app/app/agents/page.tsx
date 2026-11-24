@@ -1,8 +1,8 @@
-import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LiveAgents } from "@/components/app/agents-live";
 import { PageHeader } from "@/components/app/page-header";
-import { Button, StatusDot } from "@/components/ui";
+import { StatusDot } from "@/components/kit";
 import { ago, statusLabel, usd } from "@/lib/format";
 import { agents, runs, toolById } from "@/lib/mock";
 
@@ -14,8 +14,8 @@ export default function AgentsPage() {
       <PageHeader
         title="Agents"
         sub="Each agent is a versioned config: a prompt, a model, the tools it may call, and its limits."
-        actions={<Button variant="primary"><Plus className="size-3.5" /> New agent</Button>}
       />
+      <LiveAgents />
       <ul className="grid gap-px bg-rule sm:grid-cols-2 2xl:grid-cols-3">
         {agents.map((a) => {
           const mine = runs.filter((r) => r.agent_id === a.id).sort((x, y) => Date.parse(y.created_at) - Date.parse(x.created_at));
@@ -41,7 +41,7 @@ export default function AgentsPage() {
                     );
                   })}
                 </div>
-                <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-6 text-[12.5px] text-muted">
+                <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-6 text-[12.5px] text-muted-foreground">
                   <span className="font-mono text-[11.5px]">{a.model.name}</span>
                   {last ? (
                     <span className="inline-flex items-center gap-1.5">

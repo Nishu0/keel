@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, Instrument_Serif, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Instrument_Serif, Inter } from "next/font/google";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -19,8 +20,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} ${instrument.variable} ${geistMono.variable}`}>
-      <body className="min-h-dvh">{children}</body>
+    <html lang="en" className={`dark ${inter.variable} ${instrument.variable} ${geistMono.variable}`}>
+      <body className="min-h-dvh">
+        <TooltipProvider>{children}</TooltipProvider>
+      </body>
     </html>
   );
 }

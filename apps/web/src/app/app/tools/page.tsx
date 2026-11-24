@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/app/page-header";
-import { Button, EffectTag, Mono } from "@/components/ui";
+import { Button, EffectTag, Mono } from "@/components/kit";
 import { agents, tools } from "@/lib/mock";
 import type { Tool } from "@/lib/types";
 
@@ -34,7 +34,7 @@ export default function ToolsPage() {
           if (!list.length) return null;
           return (
             <section key={g} className="mb-10">
-              <h2 className="mb-3 text-[13px] text-muted">{KIND[g]}</h2>
+              <h2 className="mb-3 text-[13px] text-muted-foreground">{KIND[g]}</h2>
               <div className="overflow-hidden rounded-lg border border-rule-strong bg-raised">
                 <table className="w-full text-left text-[13.5px]">
                   <tbody className="divide-y divide-rule">
@@ -47,9 +47,9 @@ export default function ToolsPage() {
                               <Mono className="text-ink">{t.name}</Mono>
                               <EffectTag effect={t.effect} />
                             </div>
-                            <p className="mt-1 text-[12.5px] text-muted">{t.description}</p>
+                            <p className="mt-1 text-[12.5px] text-muted-foreground">{t.description}</p>
                           </td>
-                          <td className="hidden px-4 py-3.5 text-[12.5px] text-muted md:table-cell">
+                          <td className="hidden px-4 py-3.5 text-[12.5px] text-muted-foreground md:table-cell">
                             {t.url ? <Mono className="break-all text-ink-2">{t.url}</Mono> : <span>Runs inside keel</span>}
                             {t.effect === "external" && (
                               <p className="mt-1">
@@ -61,10 +61,10 @@ export default function ToolsPage() {
                               </p>
                             )}
                           </td>
-                          <td className="tnum hidden whitespace-nowrap px-4 py-3.5 text-right text-[12.5px] text-muted lg:table-cell">
+                          <td className="tnum hidden whitespace-nowrap px-4 py-3.5 text-right text-[12.5px] text-muted-foreground lg:table-cell">
                             {t.timeout_s}s timeout
                           </td>
-                          <td className="px-4 py-3.5 text-right text-[12.5px] text-muted">
+                          <td className="px-4 py-3.5 text-right text-[12.5px] text-muted-foreground">
                             {usedBy.length ? usedBy.map((a) => a.name).join(", ") : "Unused"}
                           </td>
                           <td className="w-20 px-4 py-3 text-right">
@@ -79,7 +79,7 @@ export default function ToolsPage() {
             </section>
           );
         })}
-        <p className="max-w-[70ch] text-[13px] leading-[1.6] text-muted">
+        <p className="max-w-[70ch] text-[13px] leading-[1.6] text-muted-foreground">
           Webhook calls are signed with your org&apos;s HMAC secret and carry an <Mono className="text-ink-2">Idempotency-Key</Mono> equal to the
           call id. The same logical call always sends the same key, across retries and worker restarts.
         </p>

@@ -1,7 +1,7 @@
 import { UserPlus } from "lucide-react";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/app/page-header";
-import { Avatar, Button } from "@/components/ui";
+import { Avatar, Button } from "@/components/kit";
 import type { Role } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Members" };
@@ -43,11 +43,11 @@ export default function MembersPage() {
                       <Avatar name={m.name} className={`size-7 text-[10.5px] ${m.pending ? "opacity-40" : ""}`} />
                       <div>
                         <p className="text-ink">{m.pending ? "Pending invite" : m.name}</p>
-                        <p className="text-[12.5px] text-muted">{m.email}</p>
+                        <p className="text-[12.5px] text-muted-foreground">{m.email}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="hidden px-4 py-3 text-[12.5px] text-muted sm:table-cell">{m.last}</td>
+                  <td className="hidden px-4 py-3 text-[12.5px] text-muted-foreground sm:table-cell">{m.last}</td>
                   <td className="px-4 py-3 text-right">
                     {m.role === "owner" ? (
                       <span className="pr-2 text-[13px] text-ink-2">Owner</span>
@@ -67,7 +67,7 @@ export default function MembersPage() {
           <h2 className="text-[14px] font-medium text-ink">What each role can do</h2>
           <div className="mt-3 overflow-x-auto rounded-lg border border-rule">
             <table className="w-full min-w-[560px] text-[13px]">
-              <thead className="text-[12.5px] text-muted">
+              <thead className="text-[12.5px] text-muted-foreground">
                 <tr className="border-b border-rule">
                   <th className="px-4 py-2 text-left font-normal" />
                   {roles.map((r) => <th key={r} className="px-4 py-2 font-normal capitalize">{r}</th>)}

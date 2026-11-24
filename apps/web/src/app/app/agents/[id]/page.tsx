@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AgentEditor } from "@/components/app/agent-editor";
 import { PageHeader } from "@/components/app/page-header";
-import { ButtonLink } from "@/components/ui";
+import { ButtonLink } from "@/components/kit";
 import { agentById, agents, tools } from "@/lib/mock";
 
 export function generateStaticParams() {

@@ -1,9 +1,8 @@
-import { Play } from "lucide-react";
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { NewRunButton } from "@/components/app/new-run";
 import { PageHeader } from "@/components/app/page-header";
 import { RunsTable } from "@/components/app/runs-table";
-import { ButtonLink } from "@/components/ui";
 import { usd } from "@/lib/format";
 import { runs } from "@/lib/mock";
 
@@ -18,9 +17,9 @@ export default function RunsPage() {
         title="Runs"
         sub={<span className="tnum">{today.length} runs today, {usd(spend)} spent</span>}
         actions={
-          <ButtonLink href="/app/agents" variant="primary">
-            <Play className="size-3.5" /> New run
-          </ButtonLink>
+          <Suspense fallback={null}>
+            <NewRunButton />
+          </Suspense>
         }
       />
       <Suspense fallback={<div className="h-12 border-b border-rule" />}>

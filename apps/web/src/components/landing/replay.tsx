@@ -3,7 +3,7 @@
 import { Check, CornerDownRight, RotateCcw, ShieldCheck, Zap } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { cx } from "@/lib/format";
-import { EffectTag, Mono } from "../ui";
+import { EffectTag, Mono } from "../kit";
 
 // A scripted replay of run_01JDX4K9TQ: a worker dies at step 4, the run
 // resumes elsewhere, and the order still goes out exactly once.
@@ -26,6 +26,38 @@ const ROWS: Row[] = [
   { at: 13000, render: () => <Done /> },
 ];
 const LOOP = 18000;
+
+/** The replay without any window chrome, for embedding in the app mockup. */
+export function ReplayBody({ onDone }: { onDone?: (done: boolean) => void }) {
+  const t = useReplayClock();
+  const shown = ROWS.filter((r) => r.at <= t);
+  const lastIdx = shown.length - 1;
+  const done = t >= ROWS[ROWS.length - 1].at;
+  useEffect(() => onDone?.(done), [done, onDone]);
+  return (
+    <ol className="h-[470px] overflow-hidden px-2 py-2 text-[13.5px]" aria-label="Run timeline replay">
+      {shown.map((r, i) => (
+        <li key={r.at} className="animate-row-in">
+          {r.render(i === lastIdx && !done)}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function useReplayClock() {
+  const [t, setT] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const id = setTimeout(() => setT(LOOP - 1), 0);
+      return () => clearTimeout(id);
+    }
+    const start = performance.now();
+    const id = setInterval(() => setT((performance.now() - start) % LOOP), 100);
+    return () => clearInterval(id);
+  }, []);
+  return t;
+}
 
 export function Replay() {
   const [t, setT] = useState(0);
@@ -54,8 +86,8 @@ export function Replay() {
           <i className="size-2.5 rounded-full bg-rule-strong" />
           <i className="size-2.5 rounded-full bg-rule-strong" />
         </span>
-        <Mono className="text-muted">run_01JDX4K9TQ</Mono>
-        <span className="text-[13px] text-muted">trading-agent v7</span>
+        <Mono className="text-muted-foreground">run_01JDX4K9TQ</Mono>
+        <span className="text-[13px] text-muted-foreground">trading-agent v7</span>
         <span className="ml-auto inline-flex items-center gap-1.5 text-[12.5px] text-ink-2">
           <i
             className={cx("size-2 rounded-full", !done && "animate-pulse-dot")}
@@ -88,7 +120,7 @@ function Model({ step, text, took, retry }: { step: number; text: string; took: 
     <Line>
       <StepNo n={step} />
       <span className="truncate text-ink">{text}</span>
-      {retry && <span className="shrink-0 text-[12px] text-muted">attempt 2</span>}
+      {retry && <span className="shrink-0 text-[12px] text-muted-foreground">attempt 2</span>}
       <span className="tnum ml-auto shrink-0 text-[12px] text-faint">{took}</span>
     </Line>
   );
@@ -101,7 +133,7 @@ function Call({ name, effect, took, out }: { name: string; effect: "pure" | "san
       <CornerDownRight className="size-3.5 shrink-0 text-faint" />
       <Mono className="shrink-0 text-ink-2">{name}</Mono>
       <EffectTag effect={effect} />
-      <span className="truncate text-[12.5px] text-muted">{out}</span>
+      <span className="truncate text-[12.5px] text-muted-foreground">{out}</span>
       <Check className="ml-auto size-3.5 shrink-0 text-st-completed" />
       <span className="tnum w-11 shrink-0 text-right text-[12px] text-faint">{took}</span>
     </Line>
@@ -152,7 +184,7 @@ function Approval({ live }: { live: boolean }) {
           Waiting for approval
         </span>
       ) : (
-        <span className="text-[12.5px] text-muted">Approved by Ana Ruiz</span>
+        <span className="text-[12.5px] text-muted-foreground">Approved by Ana Ruiz</span>
       )}
     </Line>
   );
@@ -176,7 +208,7 @@ function Done() {
   return (
     <div className="mx-2.5 mt-3 border-t border-rule pt-3">
       <p className="text-ink">Bought 240 YES at 0.58 on FED-DEC. Book is now 61/39.</p>
-      <p className="tnum mt-1 text-[12.5px] text-muted">6 steps · 52.1k tokens · $0.21 · 1m 34s</p>
+      <p className="tnum mt-1 text-[12.5px] text-muted-foreground">6 steps · 52.1k tokens · $0.21 · 1m 34s</p>
     </div>
   );
 }

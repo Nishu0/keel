@@ -42,7 +42,7 @@ export function StatusBadge({ status }: { status: RunStatus }) {
 }
 
 const effectStyle: Record<Effect, string> = {
-  pure: "text-muted border-rule",
+  pure: "text-muted-foreground border-rule",
   sandboxed: "text-st-waiting border-[color-mix(in_oklab,var(--st-waiting)_30%,transparent)]",
   external: "text-st-review border-[color-mix(in_oklab,var(--st-review)_35%,transparent)]",
 };
@@ -94,7 +94,7 @@ export function ButtonLink({
 
 export function Kbd({ children }: { children: ReactNode }) {
   return (
-    <kbd className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-rule bg-raised px-1 font-sans text-[11px] text-muted">
+    <kbd className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-rule bg-raised px-1 font-sans text-[11px] text-muted-foreground">
       {children}
     </kbd>
   );

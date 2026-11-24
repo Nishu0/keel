@@ -3,10 +3,11 @@
 import { CornerDownRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ago, cx, isLive, ms, tokens, usd } from "@/lib/format";
+import { useEffect, useState } from "react";
+import { NOW, ago, cx, isLive, ms, tokens, usd } from "@/lib/format";
 import { agentById, runs } from "@/lib/mock";
 import type { Run } from "@/lib/types";
-import { Avatar, Mono, StatusBadge } from "../ui";
+import { Avatar, Mono, StatusBadge } from "../kit";
 
 const FILTERS = [
   { id: "all", label: "All", match: () => true },
@@ -16,7 +17,66 @@ const FILTERS = [
   { id: "failed", label: "Failed or cancelled", match: (r: Run) => r.status === "failed" || r.status === "cancelled" },
 ] as const;
 
+type ApiRun = {
+  id: string;
+  agent_id: string;
+  status: Run["status"];
+  input: { task?: string };
+  parent_run_id: string | null;
+  steps: number;
+  output: string | null;
+  usage: { input_tokens: number; output_tokens: number; cost_usd: number };
+};
+type ApiAgent = { id: string; name: string; version: number };
+
+// runs from the api when it's connected; the demo data otherwise
+function useLiveRuns() {
+  const [live, setLive] = useState<{ runs: Run[]; agents: Record<string, string> }>({ runs: [], agents: {} });
+  useEffect(() => {
+    let alive = true;
+    Promise.all([fetch("/api/keel/v1/runs?limit=100"), fetch("/api/keel/v1/agents")])
+      .then(async ([r, a]) => {
+        if (!r.ok || !a.ok || !alive) return;
+        const apiRuns = (await r.json()) as ApiRun[];
+        const apiAgents = (await a.json()) as ApiAgent[];
+        const versions = Object.fromEntries(apiAgents.map((x) => [x.id, x.version]));
+        setLive({
+          agents: Object.fromEntries(apiAgents.map((x) => [x.id, x.name])),
+          runs: apiRuns.map((x) => ({
+            id: x.id,
+            agent_id: x.agent_id,
+            agent_version: versions[x.agent_id] ?? 1,
+            parent_run_id: x.parent_run_id,
+            status: x.status,
+            input: { task: x.input.task ?? JSON.stringify(x.input) },
+            output: x.output,
+            steps: x.steps,
+            usage: { ...x.usage, sandbox_s: 0 },
+            started_by: { type: "api_key", name: "api" },
+            created_at: idTime(x.id),
+            duration_ms: null,
+          })),
+        });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return live;
+}
+
+// ids are ulid style: the first 10 crockford base32 chars are the ms timestamp
+function idTime(id: string): string {
+  const A = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  const t = id.split("_")[1]?.slice(0, 10) ?? "";
+  let ms = 0;
+  for (const ch of t) ms = ms * 32 + Math.max(0, A.indexOf(ch));
+  return new Date(ms || NOW).toISOString();
+}
+
 export function RunsTable() {
+  const live = useLiveRuns();
   const params = useSearchParams();
   const router = useRouter();
   const active = FILTERS.find((f) => f.id === params.get("status")) ?? FILTERS[0];
@@ -30,7 +90,8 @@ export function RunsTable() {
     router.replace(qs ? `/app/runs?${qs}` : "/app/runs", { scroll: false });
   };
 
-  const filtered = runs
+  const all = [...live.runs, ...runs];
+  const filtered = all
     .filter(active.match)
     .filter((r) => !agent || r.agent_id === agent)
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
@@ -41,8 +102,9 @@ export function RunsTable() {
     ordered.push(r, ...filtered.filter((c) => c.parent_run_id === r.id));
   }
 
-  const counts = Object.fromEntries(FILTERS.map((f) => [f.id, runs.filter(f.match).length]));
-  const agentsInRuns = [...new Set(runs.map((r) => r.agent_id))].map((id) => agentById(id)!);
+  const counts = Object.fromEntries(FILTERS.map((f) => [f.id, all.filter(f.match).length]));
+  const agentName = (id: string) => live.agents[id] ?? agentById(id)?.name ?? id;
+  const agentsInRuns = [...new Set(all.map((r) => r.agent_id))].map((id) => ({ id, name: agentName(id) }));
 
   return (
     <>
@@ -53,14 +115,14 @@ export function RunsTable() {
             onClick={() => set("status", f.id)}
             className={cx(
               "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] transition-colors",
-              active.id === f.id ? "bg-wash font-medium text-ink" : "text-muted hover:text-ink",
+              active.id === f.id ? "bg-wash font-medium text-ink" : "text-muted-foreground hover:text-ink",
             )}
           >
             {f.label}
             <span className="tnum text-[12px] text-faint">{counts[f.id]}</span>
           </button>
         ))}
-        <label className="ml-auto flex items-center gap-2 text-[13px] text-muted">
+        <label className="ml-auto flex items-center gap-2 text-[13px] text-muted-foreground">
           Agent
           <select
             value={agent ?? "all"}
@@ -80,7 +142,7 @@ export function RunsTable() {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] text-left text-[13.5px]">
-            <thead className="text-[12.5px] text-muted">
+            <thead className="text-[12.5px] text-muted-foreground">
               <tr className="border-b border-rule">
                 <th className="py-2.5 pl-6 pr-3 font-normal lg:pl-10">Status</th>
                 <th className="px-3 py-2.5 font-normal">Task</th>
@@ -94,7 +156,12 @@ export function RunsTable() {
             </thead>
             <tbody>
               {ordered.map((r) => (
-                <Row key={r.id} run={r} child={!!r.parent_run_id && ordered.some((p) => p.id === r.parent_run_id)} />
+                <Row
+                  key={r.id}
+                  run={r}
+                  agentName={agentName(r.agent_id)}
+                  child={!!r.parent_run_id && ordered.some((p) => p.id === r.parent_run_id)}
+                />
               ))}
             </tbody>
           </table>
@@ -104,8 +171,7 @@ export function RunsTable() {
   );
 }
 
-function Row({ run, child }: { run: Run; child: boolean }) {
-  const a = agentById(run.agent_id)!;
+function Row({ run, child, agentName }: { run: Run; child: boolean; agentName: string }) {
   const href = `/app/runs/${run.id}`;
   return (
     <tr className="group relative border-b border-rule transition-colors hover:bg-wash">
@@ -118,7 +184,7 @@ function Row({ run, child }: { run: Run; child: boolean }) {
           {child && <CornerDownRight className="mt-0.5 size-3.5 shrink-0 text-faint" />}
           <div className="min-w-0">
             <p className="truncate text-ink">{run.input.task}</p>
-            <p className="mt-0.5 flex items-center gap-2 text-[12px] text-muted">
+            <p className="mt-0.5 flex items-center gap-2 text-[12px] text-muted-foreground">
               <Mono className="text-[11.5px]">{run.id}</Mono>
               <span className="inline-flex items-center gap-1">
                 {run.started_by.type === "user" ? <Avatar name={run.started_by.name} className="size-3.5 text-[7px]" /> : null}
@@ -129,7 +195,7 @@ function Row({ run, child }: { run: Run; child: boolean }) {
         </div>
       </td>
       <td className="whitespace-nowrap px-3 py-3 align-top">
-        <span className="text-ink-2">{a.name}</span>
+        <span className="text-ink-2">{agentName}</span>
         <span className="ml-1.5 text-[12px] text-faint">v{run.agent_version}</span>
       </td>
       <td className="tnum px-3 py-3 text-right align-top text-ink-2">{run.steps}</td>
@@ -138,7 +204,7 @@ function Row({ run, child }: { run: Run; child: boolean }) {
       <td className="tnum whitespace-nowrap px-3 py-3 text-right align-top text-ink-2">
         {run.duration_ms ? ms(run.duration_ms) : isLive(run.status) ? <span className="text-st-running">live</span> : "–"}
       </td>
-      <td className="tnum whitespace-nowrap py-3 pl-3 pr-6 text-right align-top text-muted lg:pr-10">{ago(run.created_at)}</td>
+      <td className="tnum whitespace-nowrap py-3 pl-3 pr-6 text-right align-top text-muted-foreground lg:pr-10">{ago(run.created_at)}</td>
     </tr>
   );
 }
@@ -147,7 +213,7 @@ function Empty({ filtered }: { filtered: boolean }) {
   return (
     <div className="flex flex-col items-center px-6 py-24 text-center">
       <p className="font-serif text-[26px] text-ink">{filtered ? "No runs match these filters." : "No runs yet."}</p>
-      <p className="mt-2 max-w-[40ch] text-[14px] text-muted">
+      <p className="mt-2 max-w-[40ch] text-[14px] text-muted-foreground">
         {filtered ? "Clear the filters to see every run in this org." : "Start a run from an agent and it will show up here as it happens."}
       </p>
       {!filtered && (

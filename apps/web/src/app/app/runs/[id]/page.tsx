@@ -3,9 +3,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { ActionButton } from "@/components/app/action-button";
+import { LiveRun } from "@/components/app/live-run";
 import { PageHeader } from "@/components/app/page-header";
 import { RunTimeline } from "@/components/app/run-timeline";
-import { Avatar, Button, Mono, StatusBadge } from "@/components/ui";
+import { Avatar, Button, Mono, StatusBadge } from "@/components/kit";
 import { ago, isLive, ms, tokens, usd } from "@/lib/format";
 import { agentById, eventsByRun, runById, runs } from "@/lib/mock";
 
@@ -21,7 +23,11 @@ export async function generateMetadata({ params }: PageProps<"/app/runs/[id]">):
 export default async function RunPage({ params }: PageProps<"/app/runs/[id]">) {
   const { id } = await params;
   const run = runById(id);
-  if (!run) notFound();
+  if (!run) {
+    // not in the demo data: it may be a real run in the api
+    if (/^run_[0-9A-Z]{26}$/.test(id)) return <LiveRun id={id} />;
+    notFound();
+  }
   const agent = agentById(run.agent_id)!;
   const events = eventsByRun[run.id];
   const parent = run.parent_run_id ? runById(run.parent_run_id) : undefined;
@@ -55,11 +61,10 @@ export default async function RunPage({ params }: PageProps<"/app/runs/[id]">) {
         }
         actions={
           <>
-            {run.status === "needs_review" && (
-              <Button variant="primary"><RotateCcw className="size-3.5" /> Resume</Button>
-            )}
             {canCancel && (
-              <Button variant="danger"><Square className="size-3 fill-current" /> Cancel run</Button>
+              <ActionButton variant="danger" path={`/v1/runs/${run.id}/cancel`} done="Cancel requested.">
+                <Square className="size-3 fill-current" /> Cancel run
+              </ActionButton>
             )}
             {!canCancel && <Button><RotateCcw className="size-3.5" /> Run again</Button>}
           </>
@@ -81,7 +86,7 @@ export default async function RunPage({ params }: PageProps<"/app/runs/[id]">) {
       <div className="grid gap-10 px-6 py-6 lg:px-10 xl:grid-cols-[minmax(0,1fr)_280px]">
         <div className="min-w-0">
           {events ? (
-            <RunTimeline events={events} model={agent.model.name} />
+            <RunTimeline runId={run.id} events={events} model={agent.model.name} />
           ) : (
             <NoEvents live={isLive(run.status)} queued={run.status === "queued"} output={run.output} />
           )}
@@ -113,7 +118,7 @@ export default async function RunPage({ params }: PageProps<"/app/runs/[id]">) {
           />
           {(parent || children.length > 0) && (
             <div>
-              <p className="mb-2 text-[12.5px] text-muted">{parent ? "Handed off from" : "Handoffs"}</p>
+              <p className="mb-2 text-[12.5px] text-muted-foreground">{parent ? "Handed off from" : "Handoffs"}</p>
               <ul className="space-y-1.5">
                 {(parent ? [parent] : children).map((r) => (
                   <li key={r.id}>
@@ -149,7 +154,7 @@ function Meta({ rows }: { rows: [string, ReactNode][] }) {
     <dl className="divide-y divide-rule border-y border-rule">
       {rows.map(([k, v]) => (
         <div key={k} className="flex items-baseline justify-between gap-4 py-2">
-          <dt className="text-muted">{k}</dt>
+          <dt className="text-muted-foreground">{k}</dt>
           <dd className="tnum text-right text-ink">{v}</dd>
         </div>
       ))}
@@ -161,7 +166,7 @@ function Budget({ used, max }: { used: number; max: number }) {
   const pct = Math.min(100, (used / max) * 100);
   return (
     <div>
-      <div className="flex justify-between text-[12.5px] text-muted">
+      <div className="flex justify-between text-[12.5px] text-muted-foreground">
         <span>Token budget</span>
         <span className="tnum">{pct.toFixed(0)}%</span>
       </div>
@@ -181,7 +186,7 @@ function NoEvents({ live, queued, output }: { live: boolean; queued: boolean; ou
       <p className="font-serif text-[24px] text-ink">
         {queued ? "Waiting for a worker." : live ? "Streaming from the worker." : "Event log not in the demo data."}
       </p>
-      <p className="mx-auto mt-2 max-w-[46ch] text-[14px] text-muted">
+      <p className="mx-auto mt-2 max-w-[46ch] text-[14px] text-muted-foreground">
         {queued
           ? "This run is in the org queue. It starts as soon as a worker has room under your concurrency limit."
           : "Steps appear here once the api is connected. Open run_01JDX4K9TQ for a full example."}

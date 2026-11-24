@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Dither } from "@/components/landing/dither";
-import { ButtonLink, Wordmark } from "@/components/ui";
+import { ButtonLink, Wordmark } from "@/components/kit";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -14,7 +14,7 @@ export default function SignIn() {
         </Link>
         <div className="mx-auto flex w-full max-w-[360px] flex-1 flex-col justify-center py-16">
           <h1 className="font-serif text-[44px] leading-none text-ink">Sign in</h1>
-          <p className="mt-3 text-[14.5px] text-muted">Pick up your runs where you left them.</p>
+          <p className="mt-3 text-[14.5px] text-muted-foreground">Pick up your runs where you left them.</p>
           <div className="mt-8 space-y-2.5">
             <ButtonLink href="/app" size="lg" className="w-full">
               <GitHub /> Continue with GitHub
@@ -38,7 +38,7 @@ export default function SignIn() {
             </label>
             <button className="h-10 w-full rounded-md bg-ink text-[14.5px] font-medium text-paper hover:bg-ink-2">Email me a sign in link</button>
           </form>
-          <p className="mt-6 text-[12.5px] text-muted">New here? Signing in creates your org on the free plan.</p>
+          <p className="mt-6 text-[12.5px] text-muted-foreground">New here? Signing in creates your org on the free plan.</p>
         </div>
       </div>
       <div className="relative hidden overflow-hidden border-l border-rule bg-surface lg:block">

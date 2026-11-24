@@ -3,7 +3,7 @@
 import { Copy, Plus } from "lucide-react";
 import { useState } from "react";
 import type { Role } from "@/lib/types";
-import { Button, Mono } from "../ui";
+import { Button, Mono } from "../kit";
 
 type Key = { id: string; name: string; prefix: string; role: Role; last_used: string; revoked?: boolean };
 
@@ -35,7 +35,7 @@ export function KeysTable() {
       {fresh && (
         <div className="rounded-lg border border-rule-strong bg-raised p-4">
           <p className="text-[14px] font-medium text-ink">Copy this key now. It won&apos;t be shown again.</p>
-          <p className="mt-0.5 text-[13px] text-muted">keel stores only a hash and the prefix.</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">keel stores only a hash and the prefix.</p>
           <div className="mt-3 flex items-center gap-2 rounded-md bg-wash px-3 py-2">
             <Mono className="min-w-0 flex-1 break-all text-ink">{fresh}</Mono>
             <Button size="sm" onClick={() => { navigator.clipboard?.writeText(fresh); setCopied(true); }}>
@@ -46,7 +46,7 @@ export function KeysTable() {
       )}
       <div className="overflow-hidden rounded-lg border border-rule-strong bg-raised">
         <table className="w-full text-left text-[13.5px]">
-          <thead className="text-[12.5px] text-muted">
+          <thead className="text-[12.5px] text-muted-foreground">
             <tr className="border-b border-rule">
               <th className="px-4 py-2 font-normal">Name</th>
               <th className="px-4 py-2 font-normal">Key</th>
@@ -61,7 +61,7 @@ export function KeysTable() {
                 <td className="px-4 py-2.5 text-ink">{k.name}</td>
                 <td className="px-4 py-2.5"><Mono className="text-ink-2">{k.prefix}…</Mono></td>
                 <td className="px-4 py-2.5 capitalize text-ink-2">{k.role}</td>
-                <td className="hidden px-4 py-2.5 text-muted sm:table-cell">{k.revoked ? "Revoked" : k.last_used}</td>
+                <td className="hidden px-4 py-2.5 text-muted-foreground sm:table-cell">{k.revoked ? "Revoked" : k.last_used}</td>
                 <td className="px-4 py-2 text-right">
                   {!k.revoked && (
                     <Button size="sm" variant="ghost" onClick={() => setKeys((all) => all.map((x) => (x.id === k.id ? { ...x, revoked: true } : x)))}>

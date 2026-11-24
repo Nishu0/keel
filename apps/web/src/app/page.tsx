@@ -4,8 +4,11 @@ import type { ReactNode } from "react";
 import { CodeWindow, RunSnippet, ToolSnippet } from "@/components/landing/code";
 import { Dither } from "@/components/landing/dither";
 import { Nav } from "@/components/landing/nav";
-import { Replay } from "@/components/landing/replay";
-import { ButtonLink, EffectTag, Mono, Wordmark } from "@/components/ui";
+import { AppWindow } from "@/components/landing/app-window";
+import { Bento } from "@/components/landing/bento";
+import { Fits } from "@/components/landing/fits";
+import { DotField } from "@/components/landing/dot-field";
+import { ButtonLink, EffectTag, Wordmark } from "@/components/kit";
 
 export default function Home() {
   return (
@@ -13,9 +16,9 @@ export default function Home() {
       <Nav />
       <main id="main">
         <Hero />
-        <Breaks />
+        <Features />
+        <WhereItFits />
         <Effects />
-        <Viewer />
         <SelfHost />
         <Pricing />
         <Closing />
@@ -26,7 +29,7 @@ export default function Home() {
 }
 
 function Wrap({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`mx-auto max-w-[1160px] px-5 sm:px-8 ${className}`}>{children}</div>;
+  return <div className={`mx-auto w-full max-w-[1160px] px-5 sm:px-8 ${className}`}>{children}</div>;
 }
 
 function H2({ children, id }: { children: ReactNode; id?: string }) {
@@ -41,73 +44,64 @@ function H2({ children, id }: { children: ReactNode; id?: string }) {
 
 function Hero() {
   return (
-    <section className="relative overflow-hidden">
-      <Dither className="pointer-events-none absolute inset-x-0 bottom-0 h-[62%] w-full opacity-[0.13]" />
-      <Wrap className="relative grid gap-12 pb-24 pt-16 sm:pt-24 lg:grid-cols-[1fr_1.08fr] lg:gap-14 lg:pb-32">
-        <div className="flex flex-col justify-center">
-          <h1 className="font-serif text-[52px] leading-[0.98] tracking-[-0.015em] text-ink sm:text-[72px] lg:text-[80px]">
-            Agents that finish what they start.
-          </h1>
-          <p className="mt-7 max-w-[46ch] text-[17px] leading-[1.6] text-ink-2">
-            keel is a runtime for long running agents. Kill a worker mid run and it picks up on another one. Tools that
-            place orders or send messages run once, never twice. Every model call and tool call is on the record.
-          </p>
-          <div className="mt-9 flex flex-wrap items-center gap-3">
-            <ButtonLink href="/app" variant="primary" size="lg">Start a run</ButtonLink>
-            <ButtonLink href="/app/runs/run_01JDX4K9TQ" variant="secondary" size="lg">See a real run</ButtonLink>
-          </div>
-          <p className="mt-6 text-[13.5px] text-muted">
-            Hosted, or <Mono className="text-ink-2">docker compose up</Mono> on your own box.
-          </p>
+    <section className="relative -mt-16 overflow-hidden bg-background pt-16">
+      <DotField className="pointer-events-none absolute inset-0 h-full w-full" />
+      {/* fade the texture out under the window so the page below starts clean */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-background" />
+      <div className="relative mx-auto max-w-[1240px] px-5 pt-24 text-center sm:px-8 sm:pt-28">
+        <h1 className="mx-auto max-w-[14ch] font-serif text-[56px] leading-[0.95] tracking-[-0.02em] text-foreground sm:text-[88px] lg:text-[112px]">
+          Agents that finish what they <span className="text-dither pr-[0.06em]">start.</span>
+        </h1>
+        <p className="mx-auto mt-8 max-w-[48ch] text-[18px] leading-[1.5] text-muted-foreground sm:text-[21px]">
+          A runtime for long running agents. Runs survive crashes, tools never fire twice, and every step is on the record.
+        </p>
+        <div className="mt-11 flex flex-wrap items-center justify-center gap-4">
+          <Link
+            href="/app/runs/run_01JDX4K9TQ"
+            className="inline-flex h-12 items-center rounded-lg border border-white/15 bg-background px-7 text-[17px] text-foreground transition-colors hover:border-white/25 hover:bg-white/[0.03]"
+          >
+            See a real run
+          </Link>
+          <Link href="/app" className="btn-sheen inline-flex h-12 items-center rounded-lg px-7 text-[17px] text-foreground">
+            Get started
+          </Link>
         </div>
-        <Replay />
+        <div className="relative mt-20 text-left">
+          <AppWindow />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------- bento ---------------- */
+
+function Features() {
+  return (
+    <section id="durability" className="scroll-mt-20 py-24 sm:py-32">
+      <Wrap className="max-w-[1240px]">
+        <Bento />
       </Wrap>
     </section>
   );
 }
 
-/* ---------------- what breaks ---------------- */
+/* ---------------- where keel fits ---------------- */
 
-const BREAKS = [
-  {
-    breaks: "The process dies at step 40 and starts again from step 1.",
-    cost: "You pay for the same 39 model calls twice and lose the context the agent built.",
-    fix: "Every step is appended to an event log before and after it has an effect. A new worker folds the log and carries on from the last finished step.",
-  },
-  {
-    breaks: "A retry re-runs a step that already placed an order.",
-    cost: "Two orders, two emails, two pull requests.",
-    fix: "Each tool call gets a stable id from the run, step and position. External tools receive it as an idempotency key and are asked what happened before anything is retried.",
-  },
-  {
-    breaks: "A run goes strange and all you have is print output.",
-    cost: "No record of what the model saw, what it called, or what came back.",
-    fix: "The run page shows each step: model input and output, tool inputs and outputs, timings, tokens and cost. Live while it runs, replayable after.",
-  },
-];
-
-function Breaks() {
+function WhereItFits() {
   return (
-    <section id="durability" className="border-t border-rule bg-surface py-24 sm:py-32">
-      <Wrap>
-        <div className="grid gap-6 lg:grid-cols-[1fr_1.5fr] lg:gap-16">
-          <H2>Long runs break in three ordinary ways.</H2>
-          <p className="max-w-[52ch] self-end text-[16.5px] leading-[1.65] text-ink-2">
-            Trading bots, research agents, scripts that call a model, run some code and hit an API for an hour. They
-            fail the same way every time. keel handles all three in one small runtime, so the agent code stays plain.
+    <section id="fits" className="scroll-mt-20 border-t border-rule py-24 sm:py-32">
+      <Wrap className="max-w-[1240px]">
+        <div className="mb-12 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-16">
+          <H2>
+            <em className="italic">Not</em> another memory layer.
+          </H2>
+          <p className="max-w-[54ch] self-end text-[16.5px] leading-[1.65] text-ink-2">
+            Memory layers decide what an agent remembers. Harnesses decide how it thinks. Neither one knows whether the order
+            from step 4 actually went out before the box died. That is the part keel owns.
           </p>
         </div>
-        <div className="mt-16 border-t border-rule-strong">
-          {BREAKS.map((b) => (
-            <div key={b.breaks} className="grid gap-4 border-b border-rule py-8 md:grid-cols-[1fr_1fr] md:gap-16">
-              <div>
-                <p className="font-serif text-[26px] leading-[1.18] text-ink">{b.breaks}</p>
-                <p className="mt-3 text-[14.5px] text-muted">{b.cost}</p>
-              </div>
-              <p className="max-w-[54ch] text-[15.5px] leading-[1.65] text-ink-2">{b.fix}</p>
-            </div>
-          ))}
-        </div>
+        <Fits />
       </Wrap>
     </section>
   );
@@ -136,7 +130,7 @@ const EFFECTS = [
 function Effects() {
   return (
     <section id="tools" className="border-t border-rule py-24 sm:py-32">
-      <Wrap className="grid gap-14 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
+      <Wrap className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-20">
         <div>
           <H2>Every tool says how dangerous it is.</H2>
           <p className="mt-6 max-w-[48ch] text-[16.5px] leading-[1.65] text-ink-2">
@@ -151,17 +145,17 @@ function Effects() {
                 </dt>
                 <dd>
                   <p className="text-[15px] text-ink">{e.what}</p>
-                  <p className="mt-1.5 text-[14px] text-muted">If in doubt: {e.doubt}</p>
+                  <p className="mt-1.5 text-[14px] text-muted-foreground">If in doubt: {e.doubt}</p>
                 </dd>
               </div>
             ))}
           </dl>
-          <p className="mt-8 max-w-[48ch] text-[14.5px] leading-[1.6] text-muted">
+          <p className="mt-8 max-w-[48ch] text-[14.5px] leading-[1.6] text-muted-foreground">
             A run stuck in review is better than a double order. It waits on the runs page with the exact call, its
             input, and a button to resolve it.
           </p>
         </div>
-        <div className="flex flex-col gap-5 lg:pt-3">
+        <div className="flex min-w-0 flex-col gap-5 lg:pt-3">
           <ToolSnippet />
           <RunSnippet />
         </div>
@@ -170,87 +164,12 @@ function Effects() {
   );
 }
 
-/* ---------------- run viewer ---------------- */
-
-function Viewer() {
-  return (
-    <section className="border-t border-rule bg-surface py-24 sm:py-32">
-      <Wrap>
-        <div className="grid gap-6 lg:grid-cols-[1fr_1.5fr] lg:gap-16">
-          <H2>See what the model saw.</H2>
-          <div className="self-end">
-            <p className="max-w-[52ch] text-[16.5px] leading-[1.65] text-ink-2">
-              Open any run and walk through it step by step. Expand a step for the full prompt, the response, each tool
-              call with its input and output, and what it cost. Approve a pending order, cancel a runaway, or resume a
-              run that needs a decision.
-            </p>
-            <Link href="/app/runs/run_01JDX4K9TQ" className="mt-5 inline-block text-[15px] font-medium text-ink underline decoration-rule-strong underline-offset-4 hover:decoration-ink">
-              Open the example run
-            </Link>
-          </div>
-        </div>
-        <ViewerStill />
-      </Wrap>
-    </section>
-  );
-}
-
-function ViewerStill() {
-  const rows: [string, string, string, string][] = [
-    ["1", "Reading the FED-DEC book before sizing anything.", "6.3k", "$0.02"],
-    ["2", "Book is 52/48. Sizing the order to land near 60/40.", "7.4k", "$0.03"],
-    ["3", "Checking for any Fed news in the last hour before I trade.", "7.9k", "$0.03"],
-    ["4", "No news. Buying 240 YES at 0.58 to reach 60/40.", "8.5k", "$0.03"],
-    ["5", "Confirming the new position.", "9.1k", "$0.03"],
-    ["6", "Bought 240 YES at 0.58 on FED-DEC. Book is now 61/39.", "13.0k", "$0.05"],
-  ];
-  return (
-    <div className="mt-16 overflow-hidden rounded-lg border border-rule-strong bg-raised shadow-[0_24px_60px_-32px_rgb(0_0_0/0.25)]">
-      <div className="grid md:grid-cols-[220px_1fr]">
-        <aside className="hidden border-r border-rule p-4 text-[13px] md:block">
-          <p className="text-muted">Run</p>
-          <Mono className="mt-1 block text-ink">run_01JDX4K9TQ</Mono>
-          <dl className="mt-5 space-y-3">
-            {[
-              ["Agent", "trading-agent v7"],
-              ["Workers", "w-2, w-3"],
-              ["Duration", "1m 34s"],
-              ["Tokens", "52.1k"],
-              ["Cost", "$0.21"],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <dt className="text-muted">{k}</dt>
-                <dd className="tnum text-ink">{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </aside>
-        <ol className="divide-y divide-rule text-[14px]">
-          {rows.map(([n, text, tok, cost]) => (
-            <li key={n} className="flex items-center gap-4 px-5 py-3.5">
-              <span className="tnum w-4 text-[12.5px] text-faint">{n}</span>
-              <span className="min-w-0 flex-1 truncate text-ink">{text}</span>
-              {n === "4" && (
-                <span className="hidden shrink-0 rounded-full border border-rule px-2 py-0.5 text-[12px] text-muted sm:inline">
-                  resumed on w-3
-                </span>
-              )}
-              <span className="tnum hidden w-12 shrink-0 text-right text-[12.5px] text-muted sm:inline">{tok}</span>
-              <span className="tnum w-12 shrink-0 text-right text-[12.5px] text-muted">{cost}</span>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </div>
-  );
-}
-
 /* ---------------- self host ---------------- */
 
 function SelfHost() {
   return (
     <section className="border-t border-rule py-24 sm:py-32">
-      <Wrap className="grid items-center gap-12 lg:grid-cols-[1fr_1fr] lg:gap-20">
+      <Wrap className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-20">
         <div>
           <H2>Run it on your own machine.</H2>
           <p className="mt-6 max-w-[48ch] text-[16.5px] leading-[1.65] text-ink-2">
@@ -303,21 +222,21 @@ const PLANS = [
 
 function Pricing() {
   return (
-    <section id="pricing" className="border-t border-rule bg-surface py-24 sm:py-32">
+    <section id="pricing" className="border-t border-rule py-24 sm:py-32">
       <Wrap>
         <H2>Pay for runs, not seats you don&apos;t use.</H2>
         <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-rule-strong bg-rule md:grid-cols-3">
           {PLANS.map((p) => (
-            <div key={p.name} className={`flex flex-col p-7 ${p.featured ? "bg-raised" : "bg-surface"}`}>
+            <div key={p.name} className={`flex flex-col p-7 ${p.featured ? "bg-white/[0.03]" : "bg-background"}`}>
               <div className="flex items-baseline justify-between">
                 <h3 className="text-[15px] font-medium text-ink">{p.name}</h3>
-                {p.featured && <span className="text-[12.5px] text-muted">Most teams start here</span>}
+                {p.featured && <span className="text-[12.5px] text-muted-foreground">Most teams start here</span>}
               </div>
-              <p className="mt-5 font-serif text-[44px] leading-none text-ink">
+              <p className="stat-num mt-5 text-[44px] leading-none text-ink">
                 {p.price}
-                {p.price.startsWith("$") && <span className="ml-1 font-sans text-[14px] text-muted">/ month</span>}
+                {p.price.startsWith("$") && <span className="ml-1 font-sans text-[14px] text-muted-foreground">/ month</span>}
               </p>
-              <p className="mt-3 text-[14px] text-muted">{p.note}</p>
+              <p className="mt-3 text-[14px] text-muted-foreground">{p.note}</p>
               <ul className="mt-7 space-y-2.5 text-[14.5px] text-ink-2">
                 {p.items.map((i) => (
                   <li key={i} className="flex gap-2.5">
@@ -367,11 +286,11 @@ function Footer() {
       <Wrap className="grid gap-10 py-14 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div>
           <Wordmark />
-          <p className="mt-3 max-w-[32ch] text-[13.5px] text-muted">A durable runtime for agents.</p>
+          <p className="mt-3 max-w-[32ch] text-[13.5px] text-muted-foreground">A durable runtime for agents.</p>
         </div>
         {cols.map(([h, links]) => (
           <div key={h}>
-            <p className="text-[13px] text-muted">{h}</p>
+            <p className="text-[13px] text-muted-foreground">{h}</p>
             <ul className="mt-3 space-y-2 text-[14px]">
               {links.map(([l, href]) => (
                 <li key={l}>

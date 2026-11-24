@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { cx, tokens as fmtTokens } from "@/lib/format";
 import type { Agent, Tool } from "@/lib/types";
-import { Button, EffectTag, Mono } from "../ui";
+import { Button, EffectTag, Mono } from "../kit";
 
 const MODELS: Record<Agent["model"]["provider"], string[]> = {
   anthropic: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
@@ -60,13 +60,13 @@ export function AgentEditor({ agent, allTools }: { agent: Agent; allTools: Tool[
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={cx("h-7 rounded-md px-2.5 text-[13px]", view === v ? "bg-wash font-medium text-ink" : "text-muted hover:text-ink")}
+                className={cx("h-7 rounded-md px-2.5 text-[13px]", view === v ? "bg-wash font-medium text-ink" : "text-muted-foreground hover:text-ink")}
               >
                 {v === "edit" ? "Config" : `Changes ${changes.length}`}
               </button>
             ))}
           </div>
-          <span className="ml-auto text-[13px] text-muted" aria-live="polite">
+          <span className="ml-auto text-[13px] text-muted-foreground" aria-live="polite">
             {saved ? (
               <span className="inline-flex items-center gap-1.5 text-ink-2"><Check className="size-3.5 text-st-completed" /> Saved as v{version}</span>
             ) : dirty ? (
@@ -146,7 +146,7 @@ export function AgentEditor({ agent, allTools }: { agent: Agent; allTools: Tool[
                           <Mono className="text-ink">{t.name}</Mono>
                           <EffectTag effect={t.effect} />
                         </span>
-                        <span className="mt-0.5 block truncate text-[12.5px] text-muted">{t.description}</span>
+                        <span className="mt-0.5 block truncate text-[12.5px] text-muted-foreground">{t.description}</span>
                       </label>
                       {on && (
                         <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[12.5px] text-ink-2">
@@ -183,7 +183,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   return (
     <section>
       <h3 className="text-[14px] font-medium text-ink">{label}</h3>
-      {hint && <p className="mb-3 mt-0.5 text-[13px] text-muted">{hint}</p>}
+      {hint && <p className="mb-3 mt-0.5 text-[13px] text-muted-foreground">{hint}</p>}
       {!hint && <div className="mb-3" />}
       {children}
     </section>
@@ -193,7 +193,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 function NumberField({ label, value, onChange, step = 1, display }: { label: string; value: number; onChange: (v: number) => void; step?: number; display?: (n: number) => string }) {
   return (
     <label className="block rounded-md border border-rule-strong bg-raised px-3 py-2 focus-within:border-ink">
-      <span className="block text-[12px] text-muted">{label}</span>
+      <span className="block text-[12px] text-muted-foreground">{label}</span>
       <input
         type="number"
         value={value}
@@ -213,7 +213,7 @@ function TestPanel({ agentId, dirty }: { agentId: string; dirty: boolean }) {
   return (
     <section className="rounded-lg border border-rule-strong bg-raised p-4">
       <h3 className="text-[14px] font-medium text-ink">Try it</h3>
-      <p className="mt-0.5 text-[13px] text-muted">
+      <p className="mt-0.5 text-[13px] text-muted-foreground">
         {dirty ? "Runs against your unsaved changes as a draft version." : "Starts a real run with this input."}
       </p>
       <textarea
@@ -245,7 +245,7 @@ function Versions({ current, updatedBy }: { current: number; updatedBy: string }
   return (
     <section>
       <h3 className="flex items-center gap-2 text-[14px] font-medium text-ink">
-        <History className="size-3.5 text-muted" /> Versions
+        <History className="size-3.5 text-muted-foreground" /> Versions
       </h3>
       <ol className="mt-3 border-l border-rule-strong">
         {notes.map((n, i) => {
@@ -255,7 +255,7 @@ function Versions({ current, updatedBy }: { current: number; updatedBy: string }
             <li key={v} className="relative pb-3 pl-4 last:pb-0">
               <span className={cx("absolute -left-[4.5px] top-1.5 size-2 rounded-full", i === 0 ? "bg-ink" : "border border-rule-strong bg-paper")} />
               <p className="text-[13.5px] text-ink">
-                v{v} <span className="text-muted">{n}</span>
+                v{v} <span className="text-muted-foreground">{n}</span>
               </p>
               <p className="text-[12px] text-faint">{i === 0 ? updatedBy : ["Ana Ruiz", "Ira Menon", "Sam Okafor"][i % 3]}</p>
             </li>
@@ -289,7 +289,7 @@ function DiffView({ changes, from }: { changes: Change[]; from: number }) {
     return (
       <div className="rounded-lg border border-dashed border-rule-strong px-6 py-14 text-center">
         <p className="font-serif text-[22px] text-ink">No changes since v{from}.</p>
-        <p className="mt-1 text-[14px] text-muted">Edit the config and the differences show up here before you save.</p>
+        <p className="mt-1 text-[14px] text-muted-foreground">Edit the config and the differences show up here before you save.</p>
       </div>
     );
   }
@@ -306,7 +306,7 @@ function DiffView({ changes, from }: { changes: Change[]; from: number }) {
                   "flex gap-3 whitespace-pre-wrap px-3.5",
                   l.kind === "-" && "bg-[color-mix(in_oklab,var(--st-failed)_9%,transparent)] text-ink",
                   l.kind === "+" && "bg-[color-mix(in_oklab,var(--st-completed)_10%,transparent)] text-ink",
-                  l.kind === " " && "text-muted",
+                  l.kind === " " && "text-muted-foreground",
                 )}
               >
                 <span className="w-3 shrink-0 select-none text-faint">{l.kind}</span>

@@ -9,7 +9,7 @@ const D = ({ children }: { children: ReactNode }) => <span className="text-[#f0b
 
 export function CodeWindow({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <figure className="overflow-hidden rounded-lg border border-black/40 bg-[#161615] text-[#e9e9e5] shadow-[0_24px_60px_-30px_rgb(0_0_0/0.5)]">
+    <figure className="overflow-hidden rounded-lg border border-border bg-background text-[#e9e9e5] shadow-[0_24px_60px_-30px_rgb(0_0_0/0.5)]">
       <figcaption className="flex h-9 items-center border-b border-white/8 px-4 font-mono text-[12px] text-[#8b8b86]">
         {title}
       </figcaption>

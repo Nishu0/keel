@@ -1,49 +1,58 @@
 "use client";
 
 import { AlertTriangle, Check, ChevronRight, Clock, CornerDownRight, Hand, Loader2, RotateCcw, ShieldCheck, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { fold, type CallState, type StepView, type ToolCallView } from "@/lib/fold";
 import { clock, cx, ms, tokens, usd } from "@/lib/format";
+import { useRunEvents, type Source } from "@/lib/live";
 import type { RunEvent } from "@/lib/types";
-import { Button, EffectTag, Mono } from "../ui";
+import { EffectTag, Mono } from "../kit";
+import { ActionButton } from "./action-button";
 import { Json } from "./json";
+
+const RunCtx = createContext({ runId: "", ended: false });
 
 type Tab = "steps" | "events";
 
-export function RunTimeline({ events, model }: { events: RunEvent[]; model: string }) {
+export function RunTimeline({ runId, events: initial, model }: { runId: string; events: RunEvent[]; model: string }) {
+  const { events, source } = useRunEvents(runId, initial);
   const view = useMemo(() => fold(events), [events]);
   const [tab, setTab] = useState<Tab>("steps");
-  const [open, setOpen] = useState<Set<number>>(() => {
-    // open the steps that need a human, or the last one
-    const flagged = view.steps.filter((s) => s.resumes.length || s.calls.some((c) => c.state !== "completed")).map((s) => s.n);
-    return new Set(flagged.length ? flagged : view.steps.slice(-1).map((s) => s.n));
-  });
+  // until someone toggles a step, open the ones that need a person (or the last one).
+  // recomputed as live events arrive, so a step that starts waiting pops open.
+  const [touched, setTouched] = useState<Set<number> | null>(null);
+  const flagged = view.steps
+    .filter((s) => s.resumes.some((r) => r.reason === "lease expired") || s.calls.some((c) => c.state !== "completed"))
+    .map((s) => s.n);
+  const open = touched ?? new Set(flagged.length ? flagged : view.steps.slice(-1).map((s) => s.n));
+  const setOpen = (next: Set<number>) => setTouched(next);
 
-  const toggle = (n: number) =>
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (next.has(n)) next.delete(n);
-      else next.add(n);
-      return next;
-    });
+  const toggle = (n: number) => {
+    const next = new Set(open);
+    if (next.has(n)) next.delete(n);
+    else next.add(n);
+    setTouched(next);
+  };
   const allOpen = open.size === view.steps.length;
 
   return (
+    <RunCtx.Provider value={{ runId, ended: !!view.final }}>
     <section aria-label="Run timeline">
       <div className="flex items-center gap-1 border-b border-rule pb-2.5">
         {(["steps", "events"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={cx("h-7 rounded-md px-2.5 text-[13px]", tab === t ? "bg-wash font-medium text-ink" : "text-muted hover:text-ink")}
+            className={cx("h-7 rounded-md px-2.5 text-[13px]", tab === t ? "bg-wash font-medium text-ink" : "text-muted-foreground hover:text-ink")}
           >
             {t === "steps" ? `Steps ${view.steps.length}` : `Event log ${events.length}`}
           </button>
         ))}
+        <SourceBadge source={source} />
         {tab === "steps" && (
           <button
             onClick={() => setOpen(allOpen ? new Set() : new Set(view.steps.map((s) => s.n)))}
-            className="ml-auto h-7 rounded-md px-2.5 text-[13px] text-muted hover:text-ink"
+            className="h-7 rounded-md px-2.5 text-[13px] text-muted-foreground hover:text-ink"
           >
             {allOpen ? "Collapse all" : "Expand all"}
           </button>
@@ -61,6 +70,20 @@ export function RunTimeline({ events, model }: { events: RunEvent[]; model: stri
         <EventLog events={events} />
       )}
     </section>
+    </RunCtx.Provider>
+  );
+}
+
+function SourceBadge({ source }: { source: Source }) {
+  if (source === "connecting") return <span className="ml-auto" />;
+  return (
+    <span
+      className="ml-auto mr-1 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground"
+      title={source === "live" ? "Streaming from the keel api" : "Showing stand in data. Set KEEL_API_URL and KEEL_API_KEY to go live."}
+    >
+      <i className={cx("size-1.5 rounded-full", source === "live" ? "animate-pulse-dot bg-st-completed" : "bg-faint")} />
+      {source === "live" ? "Live" : "Demo data"}
+    </span>
   );
 }
 
@@ -79,13 +102,22 @@ function Step({ step, model, open, onToggle, last }: { step: StepView; model: st
         aria-hidden
         className={cx(
           "tnum absolute left-0 top-2.5 flex size-[27px] items-center justify-center rounded-full border bg-raised text-[11.5px]",
-          flagged ? "border-st-review text-st-review" : "border-rule-strong text-muted",
+          flagged ? "border-st-review text-st-review" : "border-rule-strong text-muted-foreground",
         )}
       >
         {step.n}
       </span>
 
-      {step.resumes.map((r) => (
+      {step.resumes.map((r) =>
+        r.reason !== "lease expired" ? (
+          <p key={r.ts} className="mb-1.5 mt-1 flex items-center gap-2 px-3.5 text-[12.5px] text-muted-foreground">
+            <RotateCcw className="size-3 shrink-0" />
+            <span>
+              Picked up on <Mono>{r.to_worker}</Mono> after {r.reason === "approval" ? "the approval" : "review"}.
+            </span>
+            <span className="tnum ml-auto text-[12px] text-faint">{clock(r.ts)}</span>
+          </p>
+        ) : (
         <div key={r.ts} className="mb-2 mt-1 rounded-md border border-rule bg-wash px-3.5 py-2.5 text-[13px]">
           <p className="flex items-center gap-2 text-ink">
             <RotateCcw className="size-3.5 shrink-0 text-st-running" />
@@ -94,13 +126,14 @@ function Step({ step, model, open, onToggle, last }: { step: StepView; model: st
             </span>
             <span className="tnum ml-auto text-[12px] text-faint">{clock(r.ts)}</span>
           </p>
-          <p className="mt-1 pl-[22px] text-muted">
+          <p className="mt-1 pl-[22px] text-muted-foreground">
             Replayed {r.replayed_events} events
             {r.reused && <>, reused {r.reused.model_calls} model and {r.reused.tool_calls} tool results without calling them again</>}.
             {r.redo && <> Redid the {r.redo}.</>}
           </p>
         </div>
-      ))}
+        ),
+      )}
 
       <div className={cx("mb-2 rounded-lg border transition-colors", open ? "border-rule-strong bg-raised" : "border-transparent hover:bg-wash")}>
         <button onClick={onToggle} aria-expanded={open} className="flex w-full items-start gap-3 px-3.5 py-2.5 text-left">
@@ -111,7 +144,7 @@ function Step({ step, model, open, onToggle, last }: { step: StepView; model: st
             {step.calls.length > 0 && (
               <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                 {step.calls.map((c) => (
-                  <span key={c.call_id} className="inline-flex items-center gap-1.5 text-[12.5px] text-muted">
+                  <span key={c.call_id} className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
                     <CallIcon state={c.state} />
                     <Mono className="text-ink-2">{c.name}</Mono>
                     {c.duration_ms != null && <span className="tnum text-faint">{ms(c.duration_ms)}</span>}
@@ -120,7 +153,7 @@ function Step({ step, model, open, onToggle, last }: { step: StepView; model: st
               </div>
             )}
           </div>
-          <div className="tnum flex shrink-0 items-center gap-4 pt-0.5 text-[12.5px] text-muted">
+          <div className="tnum flex shrink-0 items-center gap-4 pt-0.5 text-[12.5px] text-muted-foreground">
             {toks > 0 && <span className="hidden sm:inline">{tokens(toks)} tok</span>}
             {m?.cost_usd != null && <span className="hidden sm:inline">{usd(m.cost_usd)}</span>}
             <span className="w-12 text-right">{clock(step.started_at).slice(3)}</span>
@@ -147,7 +180,7 @@ function Step({ step, model, open, onToggle, last }: { step: StepView; model: st
                 }
               >
                 <p className="text-[14px] leading-[1.6] text-ink">{m.text}</p>
-                {m.tool_calls.length > 0 && <p className="mt-2 text-[12.5px] text-muted">Asked for {m.tool_calls.map((t) => t.name).join(", ")}.</p>}
+                {m.tool_calls.length > 0 && <p className="mt-2 text-[12.5px] text-muted-foreground">Asked for {m.tool_calls.map((t) => t.name).join(", ")}.</p>}
               </Block>
             )}
             {step.calls.map((c) => (
@@ -171,7 +204,7 @@ function Block({ title, meta, children, tone }: { title: React.ReactNode; meta?:
         tone === "review" ? "border-[color-mix(in_oklab,var(--st-review)_40%,transparent)]" : "border-rule",
       )}
     >
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-rule px-3 py-2 text-[12.5px] text-muted">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-rule px-3 py-2 text-[12.5px] text-muted-foreground">
         <span className="font-medium text-ink">{title}</span>
         {meta}
       </div>
@@ -181,6 +214,7 @@ function Block({ title, meta, children, tone }: { title: React.ReactNode; meta?:
 }
 
 function CallBlock({ call: c }: { call: ToolCallView }) {
+  const { runId, ended } = useContext(RunCtx);
   const review = c.state === "in_doubt" || c.state === "awaiting_approval";
   return (
     <Block
@@ -205,18 +239,20 @@ function CallBlock({ call: c }: { call: ToolCallView }) {
     >
       {c.approval && (
         <p className="mb-3 flex items-center gap-2 text-[13px] text-ink-2">
-          <Hand className="size-3.5 text-muted" />
+          <Hand className="size-3.5 text-muted-foreground" />
           {c.approval.granted_at ? (
             <>
-              {c.approval.denied ? "Denied" : "Approved"} by {c.approval.by} after{" "}
+              {c.approval.denied ? "Denied" : "Approved"} by {actor(c.approval.by)} after{" "}
               {ms(Date.parse(c.approval.granted_at) - Date.parse(c.approval.requested_at))}.
             </>
+          ) : ended ? (
+            <>This call needed approval and never ran.</>
           ) : (
             <>This agent needs a person to approve {c.name} before it runs.</>
           )}
         </p>
       )}
-      {c.state === "in_doubt" && (
+      {c.state === "in_doubt" && !ended && (
         <div className="mb-3 rounded-md bg-[color-mix(in_oklab,var(--st-review)_8%,transparent)] px-3 py-2.5 text-[13px] text-ink">
           <p className="flex items-center gap-2 font-medium">
             <AlertTriangle className="size-3.5 text-st-review" />
@@ -224,37 +260,47 @@ function CallBlock({ call: c }: { call: ToolCallView }) {
           </p>
           <p className="mt-1 pl-[22px] text-ink-2">{c.reason}</p>
           <div className="mt-3 flex flex-wrap gap-2 pl-[22px]">
-            <Button size="sm" variant="primary">It went through, record it</Button>
-            <Button size="sm">It didn&apos;t, send it again</Button>
-            <Button size="sm" variant="ghost">Fail the run</Button>
+            <ActionButton size="sm" variant="primary" path={`/v1/runs/${runId}/resume`} body={{ call_id: c.call_id, decision: "landed" }} done="Recorded. The run is queued again.">
+              It went through, record it
+            </ActionButton>
+            <ActionButton size="sm" path={`/v1/runs/${runId}/resume`} body={{ call_id: c.call_id, decision: "retry" }} done="Queued. It will be sent once.">
+              It didn&apos;t, send it again
+            </ActionButton>
+            <ActionButton size="sm" variant="ghost" path={`/v1/runs/${runId}/resume`} body={{ call_id: c.call_id, decision: "fail" }} done="Run failed.">
+              Fail the run
+            </ActionButton>
           </div>
         </div>
       )}
-      {c.state === "awaiting_approval" && (
+      {c.state === "awaiting_approval" && !ended && (
         <div className="mb-3 flex gap-2">
-          <Button size="sm" variant="primary"><Check className="size-3.5" /> Approve</Button>
-          <Button size="sm"><X className="size-3.5" /> Deny</Button>
+          <ActionButton size="sm" variant="primary" path={`/v1/runs/${runId}/approve`} body={{ call_id: c.call_id, approve: true }} done="Approved. The run is queued again.">
+            <Check className="size-3.5" /> Approve
+          </ActionButton>
+          <ActionButton size="sm" path={`/v1/runs/${runId}/approve`} body={{ call_id: c.call_id, approve: false }} done="Denied. The model will be told.">
+            <X className="size-3.5" /> Deny
+          </ActionButton>
         </div>
       )}
       {c.idempotency_key && (
-        <p className="mb-3 flex items-center gap-2 text-[12.5px] text-muted">
+        <p className="mb-3 flex items-center gap-2 text-[12.5px] text-muted-foreground">
           <ShieldCheck className="size-3.5 text-st-completed" />
           Sent with <Mono className="text-ink-2">Idempotency-Key: {c.idempotency_key}</Mono>
         </p>
       )}
       {c.sandbox && (
-        <p className="mb-3 text-[12.5px] text-muted">
+        <p className="mb-3 text-[12.5px] text-muted-foreground">
           Sandbox <Mono className="text-ink-2">{c.sandbox.image}</Mono> on <Mono className="text-ink-2">{c.sandbox.runtime}</Mono>,{" "}
           {c.sandbox.warm ? "warm container" : "cold start"}, destroyed after the call.
         </p>
       )}
       <div className="grid gap-3 lg:grid-cols-2">
         <div>
-          <p className="mb-1 text-[12px] text-muted">Input</p>
+          <p className="mb-1 text-[12px] text-muted-foreground">Input</p>
           <Json value={c.input} className="rounded-md bg-wash px-3 py-2" />
         </div>
         <div>
-          <p className="mb-1 text-[12px] text-muted">Output</p>
+          <p className="mb-1 text-[12px] text-muted-foreground">Output</p>
           {c.output !== undefined ? (
             <Json value={c.output} className="rounded-md bg-wash px-3 py-2" />
           ) : (
@@ -264,6 +310,13 @@ function CallBlock({ call: c }: { call: ToolCallView }) {
       </div>
     </Block>
   );
+}
+
+function actor(by?: string) {
+  if (!by) return "someone";
+  if (by.startsWith("key:")) return `API key ${by.slice(4)}`;
+  if (by.startsWith("usr:")) return by.slice(4);
+  return by;
 }
 
 const stateLabel: Record<CallState, string> = {
@@ -301,7 +354,7 @@ function Final({ type, payload, ts }: { type: string; payload: Record<string, un
         {ok ? <Check className="size-3 text-white" strokeWidth={3} /> : <X className="size-3 text-white" strokeWidth={3} />}
       </span>
       <div className="px-3.5 pb-2">
-        <p className="text-[13px] text-muted">
+        <p className="text-[13px] text-muted-foreground">
           {ok ? "Finished" : "Stopped"} at <span className="tnum">{clock(ts)}</span>
         </p>
         {typeof payload.output === "string" && <p className="mt-1 font-serif text-[22px] leading-[1.25] text-ink">{payload.output}</p>}
@@ -317,7 +370,7 @@ function EventLog({ events }: { events: RunEvent[] }) {
   return (
     <div className="mt-3 overflow-hidden rounded-lg border border-rule bg-raised">
       <table className="w-full text-left text-[13px]">
-        <thead className="text-[12px] text-muted">
+        <thead className="text-[12px] text-muted-foreground">
           <tr className="border-b border-rule">
             <th className="w-12 px-3 py-2 text-right font-normal">seq</th>
             <th className="w-12 px-3 py-2 text-right font-normal">step</th>
@@ -344,7 +397,7 @@ function EventRow({ e, open, onClick }: { e: RunEvent; open: boolean; onClick: (
         <td className="tnum px-3 py-1.5 text-right font-mono text-[12px] text-faint">{e.seq}</td>
         <td className="tnum px-3 py-1.5 text-right font-mono text-[12px] text-faint">{e.step}</td>
         <td className={cx("px-3 py-1.5 font-mono text-[12.5px]", tone)}>{e.type}</td>
-        <td className="hidden max-w-0 truncate px-3 py-1.5 text-[12.5px] text-muted md:table-cell">{summary(e)}</td>
+        <td className="hidden max-w-0 truncate px-3 py-1.5 text-[12.5px] text-muted-foreground md:table-cell">{summary(e)}</td>
         <td className="tnum px-3 py-1.5 text-right font-mono text-[12px] text-faint">{clock(e.ts)}</td>
       </tr>
       {open && (

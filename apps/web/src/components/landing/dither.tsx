@@ -20,6 +20,7 @@ export function Dither({ className }: { className?: string }) {
       const px = 3;
       const w = Math.ceil(c.clientWidth / px);
       const h = Math.ceil(c.clientHeight / px);
+      if (!w || !h) return;
       c.width = w;
       c.height = h;
       const ctx = c.getContext("2d");

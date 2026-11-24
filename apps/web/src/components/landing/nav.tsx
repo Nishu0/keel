@@ -1,25 +1,29 @@
 import Link from "next/link";
-import { ButtonLink, Wordmark } from "../ui";
+import { Wordmark } from "../kit";
 
 export function Nav() {
   return (
-    <header className="sticky top-0 z-30 border-b border-transparent bg-paper/80 backdrop-blur-md supports-[backdrop-filter]:bg-paper/70">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3">
+    <header className="sticky top-0 z-30 bg-background/75 backdrop-blur-md">
+      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4">
         Skip to content
       </a>
-      <nav className="mx-auto flex h-14 max-w-[1160px] items-center gap-8 px-5 sm:px-8">
+      <nav className="mx-auto flex h-16 max-w-[1240px] items-center gap-9 px-5 sm:px-8">
         <Link href="/" aria-label="keel home">
           <Wordmark />
         </Link>
-        <div className="hidden items-center gap-6 text-[14px] text-ink-2 md:flex">
-          <a href="#durability" className="hover:text-ink">How it works</a>
-          <a href="#tools" className="hover:text-ink">Tools</a>
-          <a href="#pricing" className="hover:text-ink">Pricing</a>
-          <a href="https://github.com/Nishu0/keel" className="hover:text-ink">GitHub</a>
+        <div className="hidden items-center gap-7 text-[15px] text-muted-foreground md:flex">
+          <a href="#durability" className="transition-colors hover:text-foreground">How it works</a>
+          <a href="#tools" className="transition-colors hover:text-foreground">Tools</a>
+          <a href="#pricing" className="transition-colors hover:text-foreground">Pricing</a>
+          <a href="https://github.com/Nishu0/keel" className="transition-colors hover:text-foreground">GitHub</a>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <ButtonLink href="/sign-in" variant="ghost" size="md">Sign in</ButtonLink>
-          <ButtonLink href="/app" variant="primary" size="md">Open the app</ButtonLink>
+          <Link href="/sign-in" className="h-9 rounded-lg px-3.5 text-[15px] leading-9 text-foreground/90 hover:text-foreground">
+            Sign in
+          </Link>
+          <Link href="/app" className="btn-sheen h-9 rounded-lg px-4 text-[15px] leading-9 text-foreground">
+            Get started
+          </Link>
         </div>
       </nav>
     </header>

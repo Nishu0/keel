@@ -39,7 +39,7 @@ export function UsageChart({ series, days }: { series: Series[]; days: Day[] }) 
             </li>
           ))}
         </ul>
-        <button onClick={() => setTable((t) => !t)} className="ml-auto text-[12.5px] text-muted underline decoration-rule-strong underline-offset-4 hover:text-ink">
+        <button onClick={() => setTable((t) => !t)} className="ml-auto text-[12.5px] text-muted-foreground underline decoration-rule-strong underline-offset-4 hover:text-ink">
           {table ? "Show chart" : "Show table"}
         </button>
       </figcaption>
@@ -47,7 +47,7 @@ export function UsageChart({ series, days }: { series: Series[]; days: Day[] }) 
       {table ? (
         <div className="mt-4 overflow-x-auto">
           <table className="tnum w-full text-right text-[12.5px]">
-            <thead className="text-muted">
+            <thead className="text-muted-foreground">
               <tr className="border-b border-rule">
                 <th className="py-1.5 text-left font-normal">Day</th>
                 {series.map((s) => <th key={s.id} className="py-1.5 font-normal">{s.name}</th>)}
@@ -68,14 +68,15 @@ export function UsageChart({ series, days }: { series: Series[]; days: Day[] }) 
       ) : (
         <div className="relative mt-5 flex gap-3">
           {/* y axis */}
-          <div className="tnum relative w-10 shrink-0 text-right text-[11.5px] text-muted" style={{ height: H }} aria-hidden>
+          <div className="tnum relative w-10 shrink-0 text-right text-[11.5px] text-muted-foreground" style={{ height: H }} aria-hidden>
             {ticks.map((t) => (
               <span key={t} className="absolute right-0 -translate-y-1/2" style={{ top: H - (t / max) * H }}>
-                ${t.toFixed(0)}
+                {money(t, max)}
               </span>
             ))}
           </div>
-          <div className="relative min-w-0 flex-1">
+          {/* few days: keep bars bar shaped instead of stretching across the card */}
+          <div className="relative min-w-0 flex-1" style={{ maxWidth: Math.max(days.length * 72, 160) }}>
             {ticks.map((t) => (
               <div
                 key={t}
@@ -84,7 +85,7 @@ export function UsageChart({ series, days }: { series: Series[]; days: Day[] }) 
                 style={{ top: H - (t / max) * H }}
               />
             ))}
-            <div className="relative flex items-end gap-[6px]" style={{ height: H }} role="img" aria-label="Stacked bars of daily spend per agent over 14 days">
+            <div className="relative flex items-end gap-[6px]" style={{ height: H }} role="img" aria-label={`Stacked bars of daily spend per agent over ${days.length} days`}>
               {days.map((d, i) => {
                 let acc = 0;
                 const segs = series.map((s, si) => {
@@ -113,7 +114,7 @@ export function UsageChart({ series, days }: { series: Series[]; days: Day[] }) 
                 );
               })}
             </div>
-            <div className="tnum mt-2 flex gap-[6px] text-[11px] text-muted" aria-hidden>
+            <div className="tnum mt-2 flex gap-[6px] text-[11px] text-muted-foreground" aria-hidden>
               {days.map((d, i) => (
                 <span key={d.date} className="flex-1 text-center">{i % 2 === 0 || i === days.length - 1 ? label(d.date, true) : ""}</span>
               ))}
@@ -124,7 +125,7 @@ export function UsageChart({ series, days }: { series: Series[]; days: Day[] }) 
                 className="pointer-events-none absolute top-0 z-10 w-52 rounded-md border border-rule-strong bg-raised px-3 py-2.5 text-[12.5px] shadow-[0_12px_30px_-12px_rgb(0_0_0/0.3)]"
                 style={{ left: `clamp(0px, calc(${((hover + 0.5) / days.length) * 100}% - 104px), calc(100% - 208px))` }}
               >
-                <p className="text-muted">{label(days[hover].date)}</p>
+                <p className="text-muted-foreground">{label(days[hover].date)}</p>
                 <ul className="mt-1.5 space-y-1">
                   {[...series].reverse().map((s) => {
                     const si = series.indexOf(s);
@@ -150,9 +151,19 @@ export function UsageChart({ series, days }: { series: Series[]; days: Day[] }) 
   );
 }
 
+// round up to 1, 2 or 5 times a power of ten, so small spend still fills the chart
 function niceMax(v: number) {
-  const step = v > 40 ? 20 : v > 10 ? 10 : 2;
-  return Math.ceil((v * 1.05) / step) * step || step;
+  if (v <= 0) return 1;
+  const target = v * 1.05;
+  const mag = 10 ** Math.floor(Math.log10(target));
+  return [1, 2, 5, 10].find((m) => m * mag >= target)! * mag;
+}
+
+function money(v: number, max: number) {
+  if (v === 0) return "$0";
+  if (max < 0.1) return `$${v.toFixed(3)}`;
+  if (max < 1) return `$${v.toFixed(2)}`;
+  return `$${v % 1 ? v.toFixed(1) : v.toFixed(0)}`;
 }
 
 function label(date: string, short = false) {

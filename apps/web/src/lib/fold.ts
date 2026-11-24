@@ -151,8 +151,8 @@ export function fold(events: RunEvent[]): RunView {
         const s = step(e);
         s.resumes.push({
           ts: e.ts,
-          from_worker: str(p.from_worker) ?? "?",
-          to_worker: str(p.to_worker) ?? "?",
+          from_worker: str(p.from_worker) ?? "the previous worker",
+          to_worker: str(p.to_worker) ?? str(p.worker) ?? "?",
           reason: str(p.reason) ?? "",
           replayed_events: num(p.replayed_events) ?? 0,
           reused: p.reused as ResumeView["reused"],
