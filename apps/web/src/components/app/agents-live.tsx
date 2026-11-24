@@ -4,6 +4,7 @@ import { Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Button, Mono } from "../kit";
+import { Templates } from "./templates-live";
 
 type ApiAgent = {
   id: string;
@@ -52,7 +53,7 @@ export function LiveAgents({ demo }: { demo: React.ReactNode }) {
         </Button>
       </div>
       {agents.length === 0 ? (
-        <p className="mt-3 text-[14px] text-muted-foreground">No agents yet. Create one to start runs against the api.</p>
+        <p className="mt-3 text-[14px] text-muted-foreground">No agents yet. Create one, or start from a template below.</p>
       ) : (
         <ul className="mt-3 divide-y divide-rule overflow-hidden rounded-lg border border-rule-strong bg-raised">
           {agents.map((a) => (
@@ -74,6 +75,7 @@ export function LiveAgents({ demo }: { demo: React.ReactNode }) {
           ))}
         </ul>
       )}
+      <Templates onCreated={load} />
       {open && (
         <NewAgentDialog
           existing={agents}

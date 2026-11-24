@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
+from typing import Any
 
 from keel.providers.base import Completion, Message, ToolCall, ToolSpec, Usage
 
@@ -62,7 +64,7 @@ class DemoProvider:
                 tool_calls=[
                     ToolCall(
                         name=t.name,
-                        input={"task": messages[0].content} if t.name.startswith("handoff__") else {},
+                        input=_demo_input(t, messages[0].content),
                     )
                 ],
                 usage=usage,
@@ -72,3 +74,22 @@ class DemoProvider:
                 text=f"{results[-1].name} returned {results[-1].content}", usage=usage, cost_usd=price
             )
         return Completion(text=f"echo: {messages[0].content}", usage=usage, cost_usd=price)
+
+
+def _demo_input(t: ToolSpec, task: str) -> dict[str, Any]:
+    """Plausible arguments for the demo model: fill each required field from the task."""
+    props = t.input_schema.get("properties", {})
+    out: dict[str, Any] = {}
+    for name in t.input_schema.get("required", []):
+        kind = props.get(name, {}).get("type", "string")
+        if kind in ("integer", "number"):
+            out[name] = 1
+        elif kind == "boolean":
+            out[name] = False
+        elif kind == "string" and "url" in name:
+            m = re.search(r"https?://\S+|\b[\w-]+\.(?:org|com|dev|io|net)\b", task)
+            url = m.group(0).rstrip(".,)") if m else "https://example.com"
+            out[name] = url if url.startswith("http") else f"https://{url}"
+        elif kind == "string":
+            out[name] = task
+    return out

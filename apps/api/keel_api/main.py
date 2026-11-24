@@ -17,7 +17,7 @@ from keel.store.memory import MemoryStore
 
 from .deps import AppState
 from .rbac import Role
-from .routes import agents, audit, auth, automations, billing, org, runs, tools, usage
+from .routes import agents, audit, auth, automations, billing, org, runs, templates, tools, usage
 
 
 def _default_store() -> Store:
@@ -103,6 +103,7 @@ def create_app(store: Store | None = None, accounts: AccountStore | None = None)
     app.include_router(tools.router)
     app.include_router(billing.router)
     app.include_router(automations.router)
+    app.include_router(templates.router)
     app.include_router(agents.router)
     app.include_router(runs.router)
     app.include_router(audit.router)

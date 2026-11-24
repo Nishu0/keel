@@ -50,20 +50,35 @@ export function OverviewLive({ demoRows }: { demoRows: RunRow[] }) {
   }, [runs.data, agents.data]);
 
   if (live && live.rows.length === 0) {
+    const steps: [string, string, string, string][] = [
+      ["Start from a template", "Pick a starter agent. keel creates it and runs its sample task so you can watch every step land.", "/app/agents", "Pick a template"],
+      ["Run it from your code", "Create an api key and start runs from python, typescript or plain http.", "/app/settings/keys", "Create a key"],
+      ["Let it run on its own", "Put an agent on a schedule, or give it a url that starts a run when something posts to it.", "/app/automations", "Set up automations"],
+    ];
     return (
-      <div className="mx-4 rounded-xl border border-dashed border-border px-6 py-16 text-center lg:mx-6">
-        <p className="font-serif text-[28px] text-foreground">Your first run starts here.</p>
-        <p className="mx-auto mt-2 max-w-[44ch] text-[15px] text-muted-foreground">
-          Create an agent with a prompt and the tools it may call, then give it a task. Every step shows up here as it happens.
+      <div className="mx-4 rounded-xl border border-border px-6 py-10 lg:mx-6 lg:px-10">
+        <p className="font-serif text-[30px] leading-tight text-foreground">Your first run starts here.</p>
+        <p className="mt-2 max-w-[56ch] text-[15px] text-muted-foreground">
+          Three steps from nothing to an agent that runs on its own. Every step of every run shows up on this page as it happens.
         </p>
-        <div className="mt-6 flex justify-center gap-2">
-          <Link href="/app/agents" className="btn-sheen inline-flex h-9 items-center rounded-lg px-4 text-[14px] text-foreground">
-            Create an agent
-          </Link>
-          <Link href="/app/runs/run_01JDX4K9TQ" className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[14px] text-foreground hover:bg-wash">
-            See an example run
-          </Link>
-        </div>
+        <ol className="mt-8 grid gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-3">
+          {steps.map(([title, body, href, cta], i) => (
+            <li key={title} className="flex flex-col bg-background p-5">
+              <span className="tnum text-[13px] text-muted-foreground">Step {i + 1}</span>
+              <p className="mt-1 text-[15.5px] text-foreground">{title}</p>
+              <p className="mt-1.5 flex-1 text-[13.5px] leading-[1.55] text-ink-2">{body}</p>
+              <Link
+                href={href}
+                className={`mt-5 inline-flex h-9 w-fit items-center rounded-lg px-4 text-[14px] text-foreground ${i === 0 ? "btn-sheen" : "border border-border hover:bg-wash"}`}
+              >
+                {cta}
+              </Link>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-5 text-[13.5px] text-muted-foreground">
+          New to keel? The <Link href="/docs/quickstart" className="text-foreground underline decoration-border underline-offset-4">quickstart</Link> takes about five minutes.
+        </p>
       </div>
     );
   }
