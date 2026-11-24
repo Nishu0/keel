@@ -1,6 +1,6 @@
-import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/app/page-header";
+import { ToolsLive } from "@/components/app/tools-live";
 import { Button, EffectTag, Mono } from "@/components/kit";
 import { agents, tools } from "@/lib/mock";
 import type { Tool } from "@/lib/types";
@@ -21,13 +21,10 @@ export default function ToolsPage() {
       <PageHeader
         title="Tools"
         sub="Your own tools as HTTPS webhooks or MCP servers, plus what keel ships with."
-        actions={
-          <>
-            <Button>Connect MCP server</Button>
-            <Button variant="primary"><Plus className="size-3.5" /> Add webhook</Button>
-          </>
-        }
       />
+      <div className="px-6 py-6 lg:px-10">
+        <ToolsLive
+          demo={
       <div className="px-6 py-6 lg:px-10">
         {groups.map((g) => {
           const list = tools.filter((t) => t.kind === g);
@@ -83,6 +80,9 @@ export default function ToolsPage() {
           Webhook calls are signed with your org&apos;s HMAC secret and carry an <Mono className="text-ink-2">Idempotency-Key</Mono> equal to the
           call id. The same logical call always sends the same key, across retries and worker restarts.
         </p>
+      </div>
+          }
+        />
       </div>
     </>
   );

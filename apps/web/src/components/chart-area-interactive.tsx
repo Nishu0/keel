@@ -8,7 +8,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { daily } from "@/lib/overview"
+import { daily as demoDaily, type DayStat } from "@/lib/overview"
 
 const chartConfig = {
   completed: { label: "Completed", color: "var(--st-completed)" },
@@ -18,7 +18,7 @@ const chartConfig = {
 const RANGES = { "90d": "Last 3 months", "30d": "Last 30 days", "7d": "Last 7 days" } as const
 type Range = keyof typeof RANGES
 
-export function ChartAreaInteractive() {
+export function ChartAreaInteractive({ daily = demoDaily }: { daily?: DayStat[] }) {
   const isMobile = useIsMobile()
   const [picked, setPicked] = React.useState<Range | null>(null)
   // phones default to a week; an explicit choice always wins

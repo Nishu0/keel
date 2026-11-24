@@ -21,8 +21,8 @@ export const usd = (n: number) => (n === 0 ? "$0" : n < 0.01 ? "<$0.01" : `$${n.
 // fixed reference "now" so server and client render the same relative times
 export const NOW = Date.parse("2026-11-24T07:56:00Z");
 
-export function ago(isoTs: string): string {
-  const s = Math.max(0, Math.round((NOW - Date.parse(isoTs)) / 1000));
+export function ago(isoTs: string, now: number = NOW): string {
+  const s = Math.max(0, Math.round((now - Date.parse(isoTs)) / 1000));
   if (s < 60) return `${s}s ago`;
   const m = Math.round(s / 60);
   if (m < 60) return `${m}m ago`;

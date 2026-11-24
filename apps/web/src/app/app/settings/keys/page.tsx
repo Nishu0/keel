@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { KeysTable } from "@/components/app/keys-table";
+import { KeysLive } from "@/components/app/settings-live";
 import { PageHeader } from "@/components/app/page-header";
 
 export const metadata: Metadata = { title: "API keys" };
@@ -9,7 +10,7 @@ export default function KeysPage() {
     <>
       <PageHeader title="API keys" sub="Keys belong to this org and carry one role. Use them from the SDKs, the CLI, or curl." />
       <div className="px-6 py-6 lg:px-10">
-        <KeysTable />
+        <KeysLive demo={<KeysTable />} />
       </div>
     </>
   );

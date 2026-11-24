@@ -1,6 +1,7 @@
-import { Lock, Plus } from "lucide-react";
+import { Lock } from "lucide-react";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/app/page-header";
+import { SecretsLive } from "@/components/app/settings-live";
 import { Button, Mono } from "@/components/kit";
 
 export const metadata: Metadata = { title: "Secrets" };
@@ -18,9 +19,10 @@ export default function SecretsPage() {
       <PageHeader
         title="Secrets"
         sub="Values are write only. They're decrypted inside the worker just before use and never land in events or logs."
-        actions={<Button variant="primary"><Plus className="size-3.5" /> Add secret</Button>}
       />
       <div className="px-6 py-6 lg:px-10">
+        <SecretsLive
+          demo={
         <div className="overflow-hidden rounded-lg border border-rule-strong bg-raised">
           <table className="w-full text-left text-[13.5px]">
             <thead className="text-[12.5px] text-muted-foreground">
@@ -49,8 +51,10 @@ export default function SecretsPage() {
             </tbody>
           </table>
         </div>
+          }
+        />
         <p className="mt-4 max-w-[70ch] text-[13px] text-muted-foreground">
-          Each org has its own data key, wrapped by AWS KMS. Secrets are sealed with AES-GCM under that key. Event payloads pass through a redactor that
+          Each org has its own data key, derived from the master key (AWS KMS when hosted). Secrets are sealed with AES-GCM under that key, bound to the org and the secret name. Event payloads pass through a redactor that
           masks known secret values before they&apos;re stored.
         </p>
       </div>

@@ -25,19 +25,21 @@ const BUILTIN = [
 const MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"];
 
 /** Agents from the api, plus a button to create one. Renders nothing when the api isn't connected. */
-export function LiveAgents() {
+export function LiveAgents({ demo }: { demo: React.ReactNode }) {
   const [agents, setAgents] = useState<ApiAgent[] | null>(null);
   const [open, setOpen] = useState(false);
 
+  const [offline, setOffline] = useState(false);
   const load = () =>
     fetch("/api/keel/v1/agents")
-      .then(async (r) => (r.ok ? setAgents((await r.json()) as ApiAgent[]) : null))
-      .catch(() => {});
+      .then(async (r) => (r.ok ? setAgents((await r.json()) as ApiAgent[]) : setOffline(true)))
+      .catch(() => setOffline(true));
   useEffect(() => {
     load();
   }, []);
 
-  if (!agents) return null;
+  if (offline) return <>{demo}</>;
+  if (!agents) return <div className="h-40" />;
   return (
     <section className="border-b border-rule px-6 py-6 lg:px-10">
       <div className="flex items-center gap-3">

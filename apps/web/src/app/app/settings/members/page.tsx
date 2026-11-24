@@ -1,7 +1,7 @@
-import { UserPlus } from "lucide-react";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/app/page-header";
-import { Avatar, Button } from "@/components/kit";
+import { MembersLive } from "@/components/app/settings-live";
+import { Avatar } from "@/components/kit";
 import type { Role } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Members" };
@@ -29,10 +29,11 @@ export default function MembersPage() {
     <>
       <PageHeader
         title="Members"
-        sub="4 of 5 seats used on Pro."
-        actions={<Button variant="primary"><UserPlus className="size-3.5" /> Invite</Button>}
-      />
+        sub="Who can see and run agents in this org, and what each role allows."
+              />
       <div className="space-y-10 px-6 py-6 lg:px-10">
+        <MembersLive
+          demo={
         <div className="overflow-hidden rounded-lg border border-rule-strong bg-raised">
           <table className="w-full text-left text-[13.5px]">
             <tbody className="divide-y divide-rule">
@@ -62,6 +63,8 @@ export default function MembersPage() {
             </tbody>
           </table>
         </div>
+          }
+        />
 
         <section>
           <h2 className="text-[14px] font-medium text-ink">What each role can do</h2>

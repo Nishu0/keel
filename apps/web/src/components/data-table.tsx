@@ -36,6 +36,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { StatusBadge } from "@/components/kit"
 import { ago, isLive, ms, tokens, usd } from "@/lib/format"
+import { useNow } from "@/lib/live"
 import type { Run } from "@/lib/types"
 
 export type RunRow = Run & { agent_name: string }
@@ -140,9 +141,14 @@ const columns: ColumnDef<RunRow>[] = [
     id: "created",
     accessorFn: (r) => Date.parse(r.created_at),
     header: ({ column }) => <SortHeader label="Started" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} />,
-    cell: ({ row }) => <span className="tabular-nums text-muted-foreground">{ago(row.original.created_at)}</span>,
+    cell: ({ row }) => <Ago iso={row.original.created_at} />,
   },
 ]
+
+function Ago({ iso }: { iso: string }) {
+  const now = useNow()
+  return <span className="tabular-nums text-muted-foreground">{ago(iso, now)}</span>
+}
 
 export function DataTable({ data }: { data: RunRow[] }) {
   const [tab, setTab] = React.useState<(typeof TABS)[number]["id"]>("all")

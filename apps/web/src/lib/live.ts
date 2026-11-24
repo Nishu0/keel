@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { NOW } from "./format";
 import type { EventType, RunEvent } from "./types";
 
 const TYPES: EventType[] = [
@@ -67,4 +68,60 @@ export async function act(path: string, body?: unknown): Promise<ActResult> {
   } catch {
     return { ok: false, error: "Couldn't reach the server." };
   }
+}
+
+/** GET a path from the api. `live` is false when the api isn't connected (demo mode). */
+export function useApi<T>(path: string) {
+  const [state, setState] = useState<{ data: T | null; live: boolean | null; error: string | null }>({ data: null, live: null, error: null });
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/keel${path}`, { cache: "no-store" })
+      .then(async (r) => {
+        if (!alive) return;
+        if (r.status === 503) return setState({ data: null, live: false, error: null });
+        if (!r.ok) {
+          const body = (await r.json().catch(() => ({}))) as { detail?: string };
+          return setState({ data: null, live: true, error: body.detail ?? `Request failed (${r.status})` });
+        }
+        setState({ data: (await r.json()) as T, live: true, error: null });
+      })
+      .catch(() => alive && setState({ data: null, live: false, error: null }));
+    return () => {
+      alive = false;
+    };
+  }, [path, tick]);
+  return { ...state, reload: () => setTick((t) => t + 1) };
+}
+
+/** Send a write to the api and return a readable error, if any. */
+export async function send(method: "POST" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<string | null> {
+  try {
+    const r = await fetch(`/api/keel${path}`, {
+      method,
+      headers: body === undefined ? undefined : { "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (r.ok) return null;
+    const data = (await r.json().catch(() => ({}))) as { detail?: unknown };
+    return typeof data.detail === "string" ? data.detail : `Request failed (${r.status})`;
+  } catch {
+    return "Couldn't reach the server.";
+  }
+}
+
+/** The current time, starting at the fixed demo clock so server and client render alike,
+ *  then ticking in real time once mounted. */
+export function useNow(everyMs = 30_000) {
+  const [now, setNow] = useState(NOW);
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const first = setTimeout(tick, 0);
+    const id = setInterval(tick, everyMs);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
+  }, [everyMs]);
+  return now;
 }

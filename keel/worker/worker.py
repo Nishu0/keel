@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from collections.abc import Awaitable, Callable
 
 from keel.core.agent import AgentConfig
 from keel.core.status import RunStatus
@@ -32,8 +33,11 @@ class Worker:
         lease_ttl_s: float = LEASE_TTL_S,
         heartbeat_s: float = HEARTBEAT_S,
         redactor: Redactor | None = None,
+        tools_for: Callable[[str], Awaitable[Registry]] | None = None,
     ) -> None:
         self.redactor = redactor
+        # builds keel's tools plus the org's own (webhooks, mcp) for each run
+        self.tools_for = tools_for
         self.id = worker_id
         self.store = store
         self.provider = provider
@@ -48,10 +52,11 @@ class Worker:
         if not await self.store.claim(org, run_id, self.id, self.lease_ttl_s):
             return None
 
+        registry = await self.tools_for(org) if self.tools_for else self.registry
         driver = RunDriver(
             store=self.store,
             provider=self.provider,
-            registry=self.registry,
+            registry=registry,
             agent=agent,
             org_id=org,
             run_id=run_id,

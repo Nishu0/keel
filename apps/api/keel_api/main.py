@@ -10,12 +10,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from keel import __version__
+from keel.accounts.store import AccountStore, MemoryAccounts
+from keel.config import load_env
 from keel.store.base import Store
 from keel.store.memory import MemoryStore
 
 from .deps import AppState
 from .rbac import Role
-from .routes import agents, audit, runs, usage
+from .routes import agents, audit, auth, org, runs, tools, usage
 
 
 def _default_store() -> Store:
@@ -26,29 +28,46 @@ def _default_store() -> Store:
     return MemoryStore()
 
 
-def create_app(store: Store | None = None) -> FastAPI:
+def _default_accounts() -> AccountStore:
+    if url := os.environ.get("KEEL_MONGO_URL"):
+        from keel.accounts.mongo import MongoAccounts
+
+        return MongoAccounts(url)
+    return MemoryAccounts()
+
+
+def create_app(store: Store | None = None, accounts: AccountStore | None = None) -> FastAPI:
     store = store or _default_store()
+    accounts = accounts or _default_accounts()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        if ensure := getattr(store, "ensure_indexes", None):
-            await ensure()
+        for s in (store, accounts):
+            if ensure := getattr(s, "ensure_indexes", None):
+                await ensure()
         if os.environ.get("KEEL_EMBEDDED_WORKER") != "1":
             yield
             return
         # dev only: drive runs inside the api process so the in memory store just works
-        from keel.tools.builtin import registry
         from keel.worker.__main__ import _provider
         from keel.worker.worker import Worker, serve
 
+        st = app.state.keel
+        worker = Worker(
+            "w-embedded",
+            store,
+            _provider(),
+            st.base_tools(),
+            tools_for=lambda org: tools.tools_for_org(st, org),
+        )
         stop = asyncio.Event()
-        task = asyncio.create_task(serve(store, Worker("w-embedded", store, _provider(), registry), stop))
+        task = asyncio.create_task(serve(store, worker, stop))
         yield
         stop.set()
         await task
 
     app = FastAPI(title="keel", version=__version__, lifespan=lifespan)
-    app.state.keel = AppState(store=store)
+    app.state.keel = AppState(store=store, accounts=accounts)
 
     # single org dev mode: a key from the environment, never a hardcoded one
     if dev_key := os.environ.get("KEEL_DEV_API_KEY"):
@@ -61,6 +80,9 @@ def create_app(store: Store | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.include_router(auth.router)
+    app.include_router(org.router)
+    app.include_router(tools.router)
     app.include_router(agents.router)
     app.include_router(runs.router)
     app.include_router(audit.router)
@@ -73,4 +95,5 @@ def create_app(store: Store | None = None) -> FastAPI:
     return app
 
 
+load_env()
 app = create_app()

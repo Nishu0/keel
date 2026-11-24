@@ -31,6 +31,16 @@ def _store() -> Store:
     return MemoryStore()
 
 
+def _accounts():
+    if url := os.environ.get("KEEL_MONGO_URL"):
+        from keel.accounts.mongo import MongoAccounts
+
+        return MongoAccounts(url)
+    from keel.accounts.store import MemoryAccounts
+
+    return MemoryAccounts()
+
+
 def _provider():
     kind = os.environ.get("KEEL_PROVIDER", "anthropic")
     if kind == "demo":
@@ -51,6 +61,9 @@ def _provider():
 
 
 async def main() -> None:
+    from keel.config import load_env
+
+    load_env()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     store = _store()
     if hasattr(store, "ensure_indexes"):
@@ -60,7 +73,20 @@ async def main() -> None:
         from keel.sandbox.tools import register
 
         register(registry)  # run_python, run_shell
-    worker = Worker(worker_id, store, _provider(), registry)
+    accounts = _accounts()
+    try:
+        from keel.security.crypto import Sealer
+
+        sealer = Sealer.from_env()
+    except Exception:
+        sealer = None  # org webhook tools need their signing secret, so they're skipped without it
+
+    from keel.tools.org import registry_for
+
+    async def tools_for(org_id: str):
+        return await registry_for(org_id, registry, accounts, sealer)
+
+    worker = Worker(worker_id, store, _provider(), registry, tools_for=tools_for)
     concurrency = int(os.environ.get("KEEL_WORKER_CONCURRENCY", "4"))
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()

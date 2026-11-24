@@ -133,6 +133,15 @@ class Registry:
 
         return wrap(fn) if fn is not None else wrap
 
+    def copy(self) -> Registry:
+        """A new registry with the same tools, to extend per org without touching this one."""
+        r = Registry()
+        r._tools = dict(self._tools)
+        return r
+
+    def names(self) -> list[str]:
+        return list(self._tools)
+
     def add(self, tool: Tool) -> Tool:
         if tool.name in self._tools:
             raise ValueError(f"tool {tool.name} is already registered")

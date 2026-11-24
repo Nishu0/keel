@@ -5,7 +5,7 @@ import { CircleAlertIcon, TrendingDownIcon, TrendingUpIcon } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { stats } from "@/lib/overview"
+import { stats as demoStats, type Stats } from "@/lib/overview"
 
 const pct = (v: number) => `${v >= 0 ? "+" : ""}${(v * 100).toFixed(1)}%`
 
@@ -21,7 +21,7 @@ function Trend({ v, goodWhenUp = true }: { v: number; goodWhenUp?: boolean }) {
   )
 }
 
-export function SectionCards() {
+export function SectionCards({ stats = demoStats }: { stats?: Stats }) {
   return (
     <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
       <Card className="@container/card">

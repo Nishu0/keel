@@ -15,7 +15,8 @@ export default function AgentsPage() {
         title="Agents"
         sub="Each agent is a versioned config: a prompt, a model, the tools it may call, and its limits."
       />
-      <LiveAgents />
+      <LiveAgents
+        demo={
       <ul className="grid gap-px bg-rule sm:grid-cols-2 2xl:grid-cols-3">
         {agents.map((a) => {
           const mine = runs.filter((r) => r.agent_id === a.id).sort((x, y) => Date.parse(y.created_at) - Date.parse(x.created_at));
@@ -58,6 +59,9 @@ export default function AgentsPage() {
           );
         })}
       </ul>
+        }
+      />
+
     </>
   );
 }

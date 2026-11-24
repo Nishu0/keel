@@ -10,16 +10,24 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { cx, isLive, statusColor, statusLabel } from "@/lib/format"
+import { ago, cx, isLive, statusColor, statusLabel } from "@/lib/format"
+import { useApi, useNow } from "@/lib/live"
+import { idTime } from "@/lib/overview"
 import type { RunStatus } from "@/lib/types"
 
 /** Recent runs in the sidebar, each with its live status. */
-export function NavDocuments({
-  items,
-}: {
-  items: { id: string; name: string; status: RunStatus; when: string }[]
-}) {
+type Item = { id: string; name: string; status: RunStatus; when: string }
+
+export function NavDocuments({ demo }: { demo: Item[] }) {
   const path = usePathname()
+  const now = useNow()
+  const runs = useApi<{ id: string; agent_id: string; status: RunStatus }[]>("/v1/runs?limit=5")
+  const agents = useApi<{ id: string; name: string }[]>("/v1/agents")
+  const names = Object.fromEntries((agents.data ?? []).map((a) => [a.id, a.name]))
+  const items: Item[] = runs.data
+    ? runs.data.map((r) => ({ id: r.id, name: names[r.agent_id] ?? r.agent_id, status: r.status, when: ago(new Date(idTime(r.id)).toISOString(), now) }))
+    : demo
+  if (runs.live && items.length === 0) return null
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
       <SidebarGroupLabel>Recent runs</SidebarGroupLabel>

@@ -31,7 +31,7 @@ type ApiAgent = { id: string; name: string; version: number };
 
 // runs from the api when it's connected; the demo data otherwise
 function useLiveRuns() {
-  const [live, setLive] = useState<{ runs: Run[]; agents: Record<string, string> }>({ runs: [], agents: {} });
+  const [live, setLive] = useState<{ runs: Run[]; agents: Record<string, string>; connected: boolean }>({ runs: [], agents: {}, connected: false });
   useEffect(() => {
     let alive = true;
     Promise.all([fetch("/api/keel/v1/runs?limit=100"), fetch("/api/keel/v1/agents")])
@@ -41,6 +41,7 @@ function useLiveRuns() {
         const apiAgents = (await a.json()) as ApiAgent[];
         const versions = Object.fromEntries(apiAgents.map((x) => [x.id, x.version]));
         setLive({
+          connected: true,
           agents: Object.fromEntries(apiAgents.map((x) => [x.id, x.name])),
           runs: apiRuns.map((x) => ({
             id: x.id,
@@ -90,7 +91,8 @@ export function RunsTable() {
     router.replace(qs ? `/app/runs?${qs}` : "/app/runs", { scroll: false });
   };
 
-  const all = [...live.runs, ...runs];
+  // connected to the api: show only the org's real runs; otherwise the demo set
+  const all = live.connected ? live.runs : runs;
   const filtered = all
     .filter(active.match)
     .filter((r) => !agent || r.agent_id === agent)

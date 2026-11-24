@@ -4,12 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-
-class Role(StrEnum):
-    OWNER = "owner"
-    ADMIN = "admin"
-    DEVELOPER = "developer"
-    VIEWER = "viewer"
+from keel.accounts.models import Role
 
 
 class Action(StrEnum):
