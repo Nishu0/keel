@@ -120,3 +120,33 @@ class ToolDef(BaseModel):
     remote_name: str | None = None  # the tool's name on the server
     auth_secret: str | None = None  # name of an org secret sent as the Authorization header
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class Schedule(BaseModel):
+    """Run an agent on a cron. ``next_run_at`` doubles as the claim: a worker fires a schedule
+    only by moving it forward from the value it read."""
+
+    id: str
+    org_id: str
+    agent_id: str
+    name: str
+    cron: str  # five fields, UTC
+    task: str
+    enabled: bool = True
+    next_run_at: datetime
+    last_run_id: str | None = None
+    created_by: str
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class Trigger(BaseModel):
+    """A secret url that starts a run when something POSTs to it."""
+
+    id: str  # sha256 of the url token
+    org_id: str
+    agent_id: str
+    name: str
+    task_template: str  # {field} placeholders filled from the JSON body
+    created_by: str
+    created_at: datetime = Field(default_factory=utcnow)
+    last_fired_at: datetime | None = None

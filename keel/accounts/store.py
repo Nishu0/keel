@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 from copy import deepcopy
+from datetime import datetime
 from typing import Any, Protocol
 
 from keel.accounts.models import (
@@ -17,9 +18,11 @@ from keel.accounts.models import (
     MagicLink,
     Membership,
     Org,
+    Schedule,
     Secret,
     Session,
     ToolDef,
+    Trigger,
     User,
 )
 from keel.core.events import utcnow
@@ -92,6 +95,8 @@ class MemoryAccounts:
         self.links: dict[str, MagicLink] = {}
         self.secrets: dict[str, Secret] = {}
         self.tools: dict[str, ToolDef] = {}
+        self.schedules: dict[str, Schedule] = {}
+        self.triggers: dict[str, Trigger] = {}
 
     @staticmethod
     def _c(x: Any) -> Any:
@@ -250,3 +255,50 @@ class MemoryAccounts:
         for k in doomed:
             del self.tools[k]
         return len(doomed)
+
+    async def put_schedule(self, s: Schedule) -> Schedule:
+        self.schedules[s.id] = self._c(s)
+        return s
+
+    async def list_schedules(self, org_id: str) -> list[Schedule]:
+        return [self._c(s) for s in self.schedules.values() if s.org_id == org_id]
+
+    async def delete_schedule(self, org_id: str, schedule_id: str) -> bool:
+        s = self.schedules.get(schedule_id)
+        if s is None or s.org_id != org_id:
+            return False
+        del self.schedules[schedule_id]
+        return True
+
+    async def due_schedules(self, now: datetime) -> list[Schedule]:
+        return [self._c(s) for s in self.schedules.values() if s.enabled and s.next_run_at <= now]
+
+    async def advance_schedule(
+        self, schedule_id: str, expected: datetime, nxt: datetime, run_id: str
+    ) -> bool:
+        s = self.schedules.get(schedule_id)
+        if s is None or s.next_run_at != expected:
+            return False
+        s.next_run_at, s.last_run_id = nxt, run_id
+        return True
+
+    async def put_trigger(self, t: Trigger) -> Trigger:
+        self.triggers[t.id] = self._c(t)
+        return t
+
+    async def list_triggers(self, org_id: str) -> list[Trigger]:
+        return [self._c(t) for t in self.triggers.values() if t.org_id == org_id]
+
+    async def get_trigger(self, trigger_id: str) -> Trigger | None:
+        return self._c(self.triggers.get(trigger_id))
+
+    async def delete_trigger(self, org_id: str, trigger_id: str) -> bool:
+        t = self.triggers.get(trigger_id)
+        if t is None or t.org_id != org_id:
+            return False
+        del self.triggers[trigger_id]
+        return True
+
+    async def touch_trigger(self, trigger_id: str) -> None:
+        if trigger_id in self.triggers:
+            self.triggers[trigger_id].last_fired_at = utcnow()

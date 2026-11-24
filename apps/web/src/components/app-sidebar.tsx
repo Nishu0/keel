@@ -4,6 +4,7 @@ import * as React from "react"
 import {
   ActivityIcon,
   BotIcon,
+  CalendarClockIcon,
   ChartBarIcon,
   CreditCardIcon,
   KeyRoundIcon,
@@ -35,6 +36,7 @@ const navMain = [
   { title: "Runs", url: "/app/runs", icon: <ActivityIcon /> },
   { title: "Agents", url: "/app/agents", icon: <BotIcon /> },
   { title: "Tools", url: "/app/tools", icon: <WrenchIcon /> },
+  { title: "Automations", url: "/app/automations", icon: <CalendarClockIcon /> },
   { title: "Usage", url: "/app/usage", icon: <ChartBarIcon /> },
 ]
 

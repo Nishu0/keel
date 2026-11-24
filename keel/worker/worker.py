@@ -106,12 +106,21 @@ async def serve(
     poll_s: float = 0.5,
     scheduler: FairScheduler | None = None,
     concurrency_for: Callable[[str], Awaitable[int]] | None = None,
+    tick: Callable[[], Awaitable[object]] | None = None,
+    tick_every_s: float = 10.0,
 ) -> None:
     """Pick up queued runs fairly across orgs and sweep expired leases until ``stop`` is set."""
     sched = scheduler or FairScheduler()
     active: set[asyncio.Task] = set()
     log.info("%s serving, concurrency %d", worker.id, concurrency)
+    last_tick = 0.0
     while not stop.is_set():
+        if tick and asyncio.get_running_loop().time() - last_tick >= tick_every_s:
+            last_tick = asyncio.get_running_loop().time()
+            try:
+                await tick()  # e.g. start runs for schedules that are due
+            except Exception:
+                log.exception("tick failed")
         for rid in await sweep(store):
             log.info("requeued %s (lease expired)", rid)
         if len(active) < concurrency:

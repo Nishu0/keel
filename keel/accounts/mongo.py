@@ -13,9 +13,11 @@ from keel.accounts.models import (
     MagicLink,
     Membership,
     Org,
+    Schedule,
     Secret,
     Session,
     ToolDef,
+    Trigger,
     User,
 )
 from keel.core.events import utcnow
@@ -43,6 +45,7 @@ class MongoAccounts:
         self.users, self.orgs, self.members = d.users, d.orgs, d.memberships
         self.sessions, self.keys, self.invites = d.sessions, d.api_keys, d.invites
         self.links, self.secrets, self.tools = d.magic_links, d.secrets, d.tools
+        self.schedules, self.triggers = d.schedules, d.triggers
 
     async def ensure_indexes(self) -> None:
         await self.users.create_index([("email_lower", ASCENDING)], unique=True)
@@ -56,6 +59,7 @@ class MongoAccounts:
         await self.secrets.create_index([("org_id", ASCENDING), ("name", ASCENDING)], unique=True)
         await self.orgs.create_index([("stripe_customer_id", ASCENDING)], sparse=True)
         await self.tools.create_index([("org_id", ASCENDING), ("name", ASCENDING)], unique=True)
+        await self.schedules.create_index([("enabled", ASCENDING), ("next_run_at", ASCENDING)])
 
     # users
     async def create_user(self, user: User) -> User:
@@ -216,3 +220,43 @@ class MongoAccounts:
         else:
             return 0
         return (await self.tools.delete_many(q)).deleted_count
+
+    # schedules and triggers
+    async def put_schedule(self, s: Schedule) -> Schedule:
+        await self.schedules.replace_one({"_id": s.id}, _doc(s), upsert=True)
+        return s
+
+    async def list_schedules(self, org_id: str) -> list[Schedule]:
+        return [_model(Schedule, d) async for d in self.schedules.find({"org_id": org_id})]
+
+    async def delete_schedule(self, org_id: str, schedule_id: str) -> bool:
+        return (await self.schedules.delete_one({"_id": schedule_id, "org_id": org_id})).deleted_count == 1
+
+    async def due_schedules(self, now: Any) -> list[Schedule]:
+        return [
+            _model(Schedule, d)
+            async for d in self.schedules.find({"enabled": True, "next_run_at": {"$lte": now}})
+        ]
+
+    async def advance_schedule(self, schedule_id: str, expected: Any, nxt: Any, run_id: str) -> bool:
+        res = await self.schedules.update_one(
+            {"_id": schedule_id, "next_run_at": expected},
+            {"$set": {"next_run_at": nxt, "last_run_id": run_id}},
+        )
+        return res.modified_count == 1
+
+    async def put_trigger(self, t: Trigger) -> Trigger:
+        await self.triggers.replace_one({"_id": t.id}, _doc(t), upsert=True)
+        return t
+
+    async def list_triggers(self, org_id: str) -> list[Trigger]:
+        return [_model(Trigger, d) async for d in self.triggers.find({"org_id": org_id})]
+
+    async def get_trigger(self, trigger_id: str) -> Trigger | None:
+        return _model(Trigger, await self.triggers.find_one({"_id": trigger_id}))
+
+    async def delete_trigger(self, org_id: str, trigger_id: str) -> bool:
+        return (await self.triggers.delete_one({"_id": trigger_id, "org_id": org_id})).deleted_count == 1
+
+    async def touch_trigger(self, trigger_id: str) -> None:
+        await self.triggers.update_one({"_id": trigger_id}, {"$set": {"last_fired_at": utcnow()}})

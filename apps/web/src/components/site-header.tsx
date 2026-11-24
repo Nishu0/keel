@@ -15,6 +15,7 @@ const TITLES: [RegExp, string][] = [
   [/^\/app\/agents\/[^/]+/, "Agent"],
   [/^\/app\/agents/, "Agents"],
   [/^\/app\/tools/, "Tools"],
+  [/^\/app\/automations/, "Automations"],
   [/^\/app\/usage/, "Usage"],
   [/^\/app\/settings\/members/, "Members"],
   [/^\/app\/settings\/keys/, "API keys"],

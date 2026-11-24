@@ -106,7 +106,16 @@ async def main() -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
 
-    await serve(store, worker, stop, concurrency, concurrency_for=concurrency_for(accounts))
+    from keel.automations import fire_due
+
+    await serve(
+        store,
+        worker,
+        stop,
+        concurrency,
+        concurrency_for=concurrency_for(accounts),
+        tick=lambda: fire_due(accounts, store),
+    )
 
 
 if __name__ == "__main__":

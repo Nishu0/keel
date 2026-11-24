@@ -17,7 +17,7 @@ from keel.store.memory import MemoryStore
 
 from .deps import AppState
 from .rbac import Role
-from .routes import agents, audit, auth, billing, org, runs, tools, usage
+from .routes import agents, audit, auth, automations, billing, org, runs, tools, usage
 
 
 def _default_store() -> Store:
@@ -69,7 +69,17 @@ def create_app(store: Store | None = None, accounts: AccountStore | None = None)
             notify=notifier(accounts, st.mailer, sealer, st.public_url),
         )
         stop = asyncio.Event()
-        task = asyncio.create_task(serve(store, worker, stop, concurrency_for=concurrency_for(accounts)))
+        from keel.automations import fire_due
+
+        task = asyncio.create_task(
+            serve(
+                store,
+                worker,
+                stop,
+                concurrency_for=concurrency_for(accounts),
+                tick=lambda: fire_due(accounts, store),
+            )
+        )
         yield
         stop.set()
         await task
@@ -92,6 +102,7 @@ def create_app(store: Store | None = None, accounts: AccountStore | None = None)
     app.include_router(org.router)
     app.include_router(tools.router)
     app.include_router(billing.router)
+    app.include_router(automations.router)
     app.include_router(agents.router)
     app.include_router(runs.router)
     app.include_router(audit.router)
