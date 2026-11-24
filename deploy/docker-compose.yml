@@ -1,0 +1,60 @@
+# local, single org. `docker compose -f deploy/docker-compose.yml up --build`
+name: keel
+
+x-python: &python
+  build:
+    context: ..
+    dockerfile: deploy/python.Dockerfile
+  environment:
+    KEEL_MONGO_URL: mongodb://mongo:27017
+    KEEL_REDIS_URL: redis://redis:6379
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
+  depends_on:
+    mongo:
+      condition: service_healthy
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    ports: ["3000:3000"]
+    environment:
+      KEEL_API_URL: http://api:8000
+    depends_on: [api]
+
+  api:
+    <<: *python
+    command: ["uvicorn", "keel_api.main:app", "--app-dir", "apps/api", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["8000:8000"]
+    environment:
+      KEEL_MONGO_URL: mongodb://mongo:27017
+      KEEL_DEV_API_KEY: ${KEEL_DEV_API_KEY:?set KEEL_DEV_API_KEY in deploy/.env}
+      KEEL_WEB_ORIGIN: http://localhost:3000
+
+  worker:
+    <<: *python
+    command: ["python", "-m", "keel.worker"]
+    deploy:
+      replicas: 2
+
+  mongo:
+    image: mongo:8
+    command: ["--replSet", "rs0", "--bind_ip_all"]  # change streams need a replica set
+    ports: ["27017:27017"]
+    volumes: ["mongo:/data/db"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { rs.status().ok } catch (e) { rs.initiate().ok }"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    ports: ["16686:16686", "4318:4318"]
+
+volumes:
+  mongo:
