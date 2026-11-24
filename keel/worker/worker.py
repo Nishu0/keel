@@ -35,8 +35,10 @@ class Worker:
         redactor: Redactor | None = None,
         tools_for: Callable[[str], Awaitable[Registry]] | None = None,
         quota: Callable[[str], Awaitable[str | None]] | None = None,
+        notify: Callable[[str, str, str, str], Awaitable[None]] | None = None,
     ) -> None:
         self.quota = quota
+        self.notify = notify
         self.redactor = redactor
         # builds keel's tools plus the org's own (webhooks, mcp) for each run
         self.tools_for = tools_for
@@ -65,6 +67,7 @@ class Worker:
             worker_id=self.id,
             redactor=self.redactor,
             quota=self.quota,
+            notify=self.notify,
         )
         task = asyncio.create_task(driver.drive())
         beat = asyncio.create_task(self._heartbeat(org, run_id, task))
@@ -118,7 +121,7 @@ async def serve(
                 caps = {o: await concurrency_for(o) for o in {r.org_id for r in queued}}
                 sched.limit_for = lambda o, caps=caps: caps.get(o, 20)
             for run in sched.pick(queued, concurrency - len(active)):
-                agent = await store.get_agent(run.org_id, run.agent_id)
+                agent = await store.get_agent(run.org_id, run.agent_id, run.agent_version)
                 if agent is None:
                     log.warning("run %s references missing agent %s", run.id, run.agent_id)
                     sched.done(run.org_id)

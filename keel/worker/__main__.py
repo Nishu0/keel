@@ -86,10 +86,19 @@ async def main() -> None:
     async def tools_for(org_id: str):
         return await registry_for(org_id, registry, accounts, sealer)
 
+    from keel.accounts.email import mailer_from_env
     from keel.accounts.enforce import concurrency_for, quota_check
+    from keel.accounts.notify import notifier
 
+    public_url = os.environ.get("KEEL_PUBLIC_URL", "http://localhost:3000")
     worker = Worker(
-        worker_id, store, _provider(), registry, tools_for=tools_for, quota=quota_check(accounts, store)
+        worker_id,
+        store,
+        _provider(),
+        registry,
+        tools_for=tools_for,
+        quota=quota_check(accounts, store),
+        notify=notifier(accounts, mailer_from_env(), sealer, public_url),
     )
     concurrency = int(os.environ.get("KEEL_WORKER_CONCURRENCY", "4"))
     stop = asyncio.Event()

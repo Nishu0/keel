@@ -35,6 +35,7 @@ class RunDoc:
     lease: Lease | None = None
     last_seq: int = 0
     parent_run_id: str | None = None
+    agent_version: int | None = None  # None: the agent's latest version
 
 
 CallStatus = Literal["started", "completed"]

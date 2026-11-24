@@ -64,8 +64,10 @@ from keel.tools.registry import Registry
 
 tools = Registry()
 
+
 async def order_status(idempotency_key: str):
     return await desk.orders.find(key=idempotency_key)  # None if it never landed
+
 
 @tools.tool(effect="external", timeout_s=30, reconcile=order_status)
 async def place_order(market_id: str, side: str, size: float, idempotency_key: str):

@@ -49,19 +49,27 @@ def create_app(store: Store | None = None, accounts: AccountStore | None = None)
             yield
             return
         # dev only: drive runs inside the api process so the in memory store just works
+        from keel.accounts.enforce import concurrency_for, quota_check
+        from keel.accounts.notify import notifier
         from keel.worker.__main__ import _provider
         from keel.worker.worker import Worker, serve
 
         st = app.state.keel
+        try:
+            sealer = st.sealer
+        except Exception:
+            sealer = None
         worker = Worker(
             "w-embedded",
             store,
             _provider(),
             st.base_tools(),
             tools_for=lambda org: tools.tools_for_org(st, org),
+            quota=quota_check(accounts, store),
+            notify=notifier(accounts, st.mailer, sealer, st.public_url),
         )
         stop = asyncio.Event()
-        task = asyncio.create_task(serve(store, worker, stop))
+        task = asyncio.create_task(serve(store, worker, stop, concurrency_for=concurrency_for(accounts)))
         yield
         stop.set()
         await task

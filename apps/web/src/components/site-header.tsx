@@ -9,6 +9,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 
 const TITLES: [RegExp, string][] = [
   [/^\/app\/?$/, "Overview"],
+  [/^\/app\/runs\/compare/, "Compare runs"],
   [/^\/app\/runs\/[^/]+/, "Run"],
   [/^\/app\/runs/, "Runs"],
   [/^\/app\/agents\/[^/]+/, "Agent"],

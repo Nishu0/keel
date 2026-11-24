@@ -30,6 +30,7 @@ class RunOut(BaseModel):
     input: dict[str, Any]
     last_seq: int
     parent_run_id: str | None = None
+    agent_version: int | None = None
 
     @classmethod
     def of(cls, r: RunDoc) -> RunOut:
@@ -40,6 +41,7 @@ class RunOut(BaseModel):
             input=r.input,
             last_seq=r.last_seq,
             parent_run_id=r.parent_run_id,
+            agent_version=r.agent_version,
         )
 
 
@@ -81,7 +83,13 @@ async def create_run(body: RunIn, c: Developer, st: State) -> RunOut:
 
     if problem := await quota_problem(st, c):
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, problem)
-    run = RunDoc(id=new_id("run"), org_id=c.org_id, agent_id=body.agent_id, input=body.input)
+    run = RunDoc(
+        id=new_id("run"),
+        org_id=c.org_id,
+        agent_id=body.agent_id,
+        input=body.input,
+        agent_version=agent.version,
+    )
     await st.store.create_run(run)
     await _append(st.store, c, run.id, EventType.RUN_CREATED, input=body.input, agent_version=agent.version)
     await audit(st, c, "run.created", run.id, agent_id=agent.id, agent_version=agent.version)
@@ -234,3 +242,45 @@ async def resume(run_id: str, body: ResumeIn, c: Operator, st: State) -> RunOut:
             )
         await st.store.set_status(c.org_id, run_id, RunStatus.QUEUED)
     return RunOut.of(await _get(st.store, c, run_id))
+
+
+class ForkIn(BaseModel):
+    from_step: int
+    agent_version: int | None = None  # continue with another version of the agent
+    tool_outputs: dict[str, Any] | None = None  # call_id -> replacement output, before from_step
+
+
+@router.post("/{run_id}/fork", status_code=status.HTTP_201_CREATED)
+async def fork(run_id: str, body: ForkIn, c: Developer, st: State) -> RunOut:
+    """A new run that reuses everything before `from_step` and continues from there."""
+    from keel.core.fork import ForkError, fork_events
+
+    from .billing import quota_problem
+
+    src = await _get(st.store, c, run_id)
+    if (
+        body.agent_version is not None
+        and await st.store.get_agent(c.org_id, src.agent_id, body.agent_version) is None
+    ):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no version {body.agent_version} of this agent")
+    if problem := await quota_problem(st, c):
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, problem)
+    new = new_id("run")
+    try:
+        events = fork_events(
+            await st.store.events(c.org_id, run_id),
+            new,
+            body.from_step,
+            tool_outputs=body.tool_outputs,
+            agent_version=body.agent_version,
+        )
+    except ForkError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
+    version = body.agent_version or src.agent_version
+    await st.store.create_run(
+        RunDoc(id=new, org_id=c.org_id, agent_id=src.agent_id, input=src.input, agent_version=version)
+    )
+    for e in events:
+        await st.store.append(e, None)
+    await audit(st, c, "run.forked", new, source=run_id, from_step=body.from_step)
+    return RunOut.of(await _get(st.store, c, new))

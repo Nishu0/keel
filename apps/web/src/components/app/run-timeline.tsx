@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Clock, CornerDownRight, Hand, Loader2, Pause, Play, RotateCcw, ShieldCheck, SkipBack, SkipForward, X } from "lucide-react";
+import { AlertTriangle, Check, GitFork, ChevronLeft, ChevronRight, Clock, CornerDownRight, Hand, Loader2, Pause, Play, RotateCcw, ShieldCheck, SkipBack, SkipForward, X } from "lucide-react";
 import Link from "next/link";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { fold, type CallState, type StepView, type ToolCallView } from "@/lib/fold";
@@ -9,6 +9,7 @@ import { useRunEvents, type Source } from "@/lib/live";
 import type { RunEvent } from "@/lib/types";
 import { EffectTag, Mono } from "../kit";
 import { ActionButton } from "./action-button";
+import { ForkButton } from "./fork-button";
 import { Json } from "./json";
 
 const RunCtx = createContext({ runId: "", ended: false });
@@ -60,6 +61,19 @@ export function RunTimeline({ runId, events: initial, model }: { runId: string; 
         )}
       </div>
 
+      {view.forked_from && (
+        <p className="mt-3 flex items-center gap-2 rounded-md border border-border px-3 py-2 text-[13px] text-ink-2">
+          <GitFork className="size-3.5 text-muted-foreground" />
+          Forked from
+          <Link href={`/app/runs/${view.forked_from.run_id}`} className="font-mono text-[12.5px] text-foreground underline decoration-border underline-offset-4">
+            {view.forked_from.run_id}
+          </Link>
+          at step {view.forked_from.step}. Steps before it were reused, not rerun.
+          <Link href={`/app/runs/compare?a=${view.forked_from.run_id}&b=${runId}`} className="ml-auto font-medium text-foreground underline decoration-border underline-offset-4">
+            Compare
+          </Link>
+        </p>
+      )}
       {tab === "steps" ? (
         <ol className="mt-3">
           {view.steps.map((s, i) => (
@@ -189,14 +203,22 @@ function Step({ step, model, open, onToggle, last }: { step: StepView; model: st
             {step.calls.map((c) => (
               <CallBlock key={c.call_id} call={c} />
             ))}
-            <p className="tnum mt-3 text-[11.5px] text-faint">
-              events {step.seqs[0]}–{step.seqs[1]}
-            </p>
+            <div className="mt-3 flex items-center justify-between">
+              <p className="tnum text-[11.5px] text-faint">
+                events {step.seqs[0]}–{step.seqs[1]}
+              </p>
+              <ForkHere step={step.n} />
+            </div>
           </div>
         )}
       </div>
     </li>
   );
+}
+
+function ForkHere({ step }: { step: number }) {
+  const { runId } = useContext(RunCtx);
+  return <ForkButton runId={runId} step={step} />;
 }
 
 function Block({ title, meta, children, tone }: { title: React.ReactNode; meta?: React.ReactNode; children: React.ReactNode; tone?: "review" }) {
@@ -477,6 +499,11 @@ function Replay({ events, model }: { events: RunEvent[]; model: string }) {
           <div className="max-h-[460px] overflow-auto px-4 py-3">
             <p className="mb-2 text-[12.5px] text-muted-foreground">{explain(e)}</p>
             <Json value={e.payload} />
+            {e.step > 0 && (
+              <div className="mt-3 border-t border-border pt-3">
+                <ForkHere step={e.step} />
+              </div>
+            )}
           </div>
         </aside>
       </div>

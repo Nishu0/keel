@@ -166,3 +166,41 @@ async def test_usage_rollup(env):
     assert u["totals"]["runs"] == 1
     assert u["totals"]["input_tokens"] == 300 and u["totals"]["output_tokens"] == 40  # 3 model calls
     assert u["days"][0]["agents"][agent["id"]]["runs"] == 1
+
+
+async def test_fork_through_the_api(env):
+    app, store = env
+    async with client(app, KEY_A) as c:
+        agent = (await c.post("/v1/agents", json={**AGENT, "approval_required": []})).json()
+        run = (await c.post("/v1/runs", json={"agent_id": agent["id"], "input": {"task": "buy"}})).json()
+        cfg = await store.get_agent("org_a", agent["id"])
+        desk = Desk()
+        await Worker("w-1", store, FakeProvider(trading_script(["FED"])), make_registry(desk)).process(
+            cfg, run["id"]
+        )
+
+        v2 = (
+            await c.post(
+                "/v1/agents",
+                json={**AGENT, "id": agent["id"], "approval_required": [], "system_prompt": "v2"},
+            )
+        ).json()
+        forked = await c.post(
+            f"/v1/runs/{run['id']}/fork", json={"from_step": 2, "agent_version": v2["version"]}
+        )
+        assert forked.status_code == 201, forked.text
+        f = forked.json()
+        assert f["status"] == "queued" and f["agent_version"] == 2
+        events = (await c.get(f"/v1/runs/{f['id']}/events")).json()
+        assert events[0]["payload"]["forked_from"] == {"run_id": run["id"], "step": 2}
+        assert max(e["step"] for e in events) == 1  # only step 1 was carried over
+
+        provider = FakeProvider(trading_script(["FED"]))
+        cfg2 = await store.get_agent("org_a", agent["id"], 2)
+        await Worker("w-2", store, provider, make_registry(desk)).process(cfg2, f["id"])
+        assert (await c.get(f"/v1/runs/{f['id']}")).json()["status"] == "completed"
+        assert provider.calls == 2  # step 1's model call was reused, not repaid
+
+        assert (await c.post(f"/v1/runs/{run['id']}/fork", json={"from_step": 50})).status_code == 422
+    async with client(app, KEY_B) as other:
+        assert (await other.post(f"/v1/runs/{run['id']}/fork", json={"from_step": 2})).status_code == 404

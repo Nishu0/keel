@@ -58,6 +58,7 @@ class MongoStore:
                 "lease": None,
                 "last_seq": 0,
                 "parent_run_id": run.parent_run_id,
+                "agent_version": run.agent_version,
                 "created_at": _now(),
                 "updated_at": _now(),
             }
@@ -266,4 +267,5 @@ def _run(d: dict[str, Any]) -> RunDoc:
         lease=Lease(lease["worker_id"], lease["expires_at"]) if lease else None,
         last_seq=d.get("last_seq", 0),
         parent_run_id=d.get("parent_run_id"),
+        agent_version=d.get("agent_version"),
     )

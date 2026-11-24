@@ -14,6 +14,7 @@ next one knows exactly what happened and what is in doubt.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import re
 import time
 from collections.abc import Awaitable, Callable
@@ -84,9 +85,11 @@ class RunDriver:
         worker_id: str,
         redactor: Redactor | None = None,
         quota: Callable[[str], Awaitable[str | None]] | None = None,
+        notify: Callable[[str, str, str, str], Awaitable[None]] | None = None,
     ) -> None:
         self.redactor = redactor or Redactor()
         self.quota = quota
+        self.notify = notify
         self.store = store
         self.provider = provider
         self.registry = registry
@@ -117,6 +120,12 @@ class RunDriver:
         await self.store.set_status(self.org_id, self.run_id, status, self.worker_id)
         await self._wake_parent()
         return outcome
+
+    async def _tell(self, kind: str, detail: str) -> None:
+        if self.notify is None:
+            return
+        with contextlib.suppress(Exception):  # a notification must never break a run
+            await self.notify(self.org_id, self.run_id, kind, detail)
 
     async def _wake_parent(self) -> None:
         """A finished child puts its parent back in the queue to pick up the result."""
@@ -252,6 +261,8 @@ class RunDriver:
                 await self.store.set_status(
                     self.org_id, self.run_id, RunStatus.WAITING_FOR_APPROVAL, self.worker_id
                 )
+                if decision is None:
+                    await self._tell("approval", f"{self.agent.name} wants to call {tc.name}.")
                 return Outcome.WAITING_FOR_APPROVAL
             if decision == "denied":
                 await self.emit(EventType.TOOL_FAILED, call_id=cid, name=tc.name, error="denied by a person")
@@ -420,6 +431,7 @@ class RunDriver:
             reason=error or "no reconcile hook, a person needs to decide",
         )
         await self.store.set_status(self.org_id, self.run_id, RunStatus.NEEDS_REVIEW, self.worker_id)
+        await self._tell("review", f"{self.agent.name} can't tell whether {tc.name} went through.")
         return Outcome.NEEDS_REVIEW
 
 

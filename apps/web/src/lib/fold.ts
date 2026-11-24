@@ -49,6 +49,7 @@ export interface StepView {
 }
 
 export interface RunView {
+  forked_from?: { run_id: string; step: number };
   steps: StepView[];
   created_at?: string;
   ended_at?: string;
@@ -91,6 +92,7 @@ export function fold(events: RunEvent[]): RunView {
     switch (e.type) {
       case "run.created":
         view.created_at = e.ts;
+        if (p.forked_from) view.forked_from = p.forked_from as RunView["forked_from"];
         break;
       case "run.started":
         break;
