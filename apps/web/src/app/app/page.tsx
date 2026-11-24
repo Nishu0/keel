@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ChartAreaInteractive } from "@/components/chart-area-interactive";
 import { DataTable, type RunRow } from "@/components/data-table";
 import { SectionCards } from "@/components/section-cards";
@@ -16,7 +17,10 @@ export default function Overview() {
         <div className="px-4 lg:px-6">
           <ChartAreaInteractive />
         </div>
-        <DataTable data={rows} />
+        {/* tanstack reads the clock while building the table, so it renders per request */}
+        <Suspense fallback={<div className="mx-4 h-[420px] rounded-lg border lg:mx-6" />}>
+          <DataTable data={rows} />
+        </Suspense>
       </div>
     </div>
   );

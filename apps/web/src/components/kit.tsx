@@ -4,31 +4,37 @@ import { cx, isLive, statusColor, statusLabel } from "@/lib/format";
 import type { Effect, RunStatus } from "@/lib/types";
 
 /*
-  The keel mark: a lowercase k drawn as a boat. The stem is the mast line, the
-  arm is a sail, and the leg is a keel blade swept aft into its ballast foot.
+  The keel mark: a rounded tile with a lowercase k cut out of it. One stroke
+  weight, round ends; the leg finishes in a short flat foot, the keel's
+  ballast. The k is drawn in the page colour, which is the same everywhere.
   Keep in sync with src/app/icon.svg.
 */
-export const MARK_PATHS = [
-  "M4 2.5h3.7v19H4z", // stem
-  "M9.3 11.6 19.6 2.5v9.1z", // sail
-  "M9.3 13.2h5.1l4.9 6.4h-5.3z", // keel blade
-  "M12.1 19.6h8.4a1.3 1.3 0 0 1 0 2.6h-7.1a1.3 1.3 0 0 1-1.3-1.3z", // ballast foot
-];
+export const MARK_K = ["M7 3.6v16.8", "M17 8.4 7.2 16.2", "M11.4 12.9l5.2 7.5h3"];
 
-export function Mark({ className = "size-5" }: { className?: string }) {
+export function Mark({ className = "size-5", knockout = "var(--background)" }: { className?: string; knockout?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden fill="currentColor">
-      {MARK_PATHS.map((d) => (
-        <path key={d} d={d} />
-      ))}
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <rect width="24" height="24" rx="6" fill="currentColor" />
+      <g
+        transform="translate(3.6 3.6) scale(0.7)"
+        fill="none"
+        stroke={knockout}
+        strokeWidth="3.3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {MARK_K.map((d) => (
+          <path key={d} d={d} />
+        ))}
+      </g>
     </svg>
   );
 }
 
 export function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cx("inline-flex items-center gap-[7px] text-foreground", className)}>
-      <Mark className="size-[19px]" />
+    <span className={cx("inline-flex items-center gap-2 text-foreground", className)}>
+      <Mark className="size-[22px]" />
       <span className="text-[20px] font-semibold leading-none tracking-[-0.045em]">keel</span>
     </span>
   );

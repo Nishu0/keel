@@ -59,9 +59,7 @@ function ResumeMock() {
   return (
     <Panel>
       <div className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3 text-[14px]">
-        <span className="flex size-6 items-center justify-center rounded-md bg-white/[0.07]">
-          <Mark className="size-3.5" />
-        </span>
+        <Mark className="size-6" />
         <span className="text-foreground">trading-agent</span>
         <Mono className="text-[12px] text-muted-foreground">run_01JDX4K9TQ</Mono>
       </div>

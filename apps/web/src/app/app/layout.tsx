@@ -16,7 +16,7 @@ export default function AppLayout({ children }: LayoutProps<"/app">) {
         } as CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
+      <AppSidebar variant="sidebar" />
       <SidebarInset>
         <SiteHeader />
         <div className="flex min-w-0 flex-1 flex-col">{children}</div>

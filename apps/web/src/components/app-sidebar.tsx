@@ -59,9 +59,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild size="lg" className="data-[slot=sidebar-menu-button]:p-1.5!">
               <Link href="/app">
-                <span className="flex size-7 items-center justify-center rounded-md bg-foreground text-background">
-                  <Mark className="size-4" />
-                </span>
+                <Mark className="size-7! shrink-0" />
                 <span className="grid leading-tight">
                   <span className="text-base font-semibold">{org.name}</span>
                   <span className="text-xs capitalize text-muted-foreground">{org.plan} plan</span>

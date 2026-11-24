@@ -43,7 +43,7 @@
   --sidebar-primary-foreground: #171716;
   --sidebar-accent: #1c1c1b;
   --sidebar-accent-foreground: #fafaf9;
-  --sidebar-border: #1f1f1e;
+  --sidebar-border: #232322; /* same hairline as every other border */
   --sidebar-ring: #5a5a58;
 
   /* keel tokens, expressed in terms of the above */

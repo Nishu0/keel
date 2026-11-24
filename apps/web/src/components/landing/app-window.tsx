@@ -74,9 +74,7 @@ export function AppWindow() {
           <div className="flex h-[52px] items-center border-b border-white/[0.07] px-4">
             <div className="w-24" />
             <div className="mx-auto flex items-center gap-2.5 text-[15px] text-foreground">
-              <span className="flex size-6 items-center justify-center rounded-md bg-white/[0.07]">
-                <Mark className="size-3.5" />
-              </span>
+              <Mark className="size-6" />
               <Mono className="text-[13px]">run_01JDX4K9TQ</Mono>
               <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
                 <i
