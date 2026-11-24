@@ -14,8 +14,9 @@ from keel.accounts.store import token_hash
 from keel.automations import AutomationError, fill, next_fire, quota_problem, start_run
 from keel.core.events import utcnow
 from keel.core.ids import new_id
+from keel.ratelimit import HOOK_IP, HOOK_TRIGGER
 
-from ..deps import Developer, State, Viewer, audit
+from ..deps import Developer, State, Viewer, audit, client_ip
 
 router = APIRouter(prefix="/v1", tags=["automations"])
 MAX_BODY = 64 * 1024
@@ -134,6 +135,8 @@ async def delete_trigger(short_id: str, c: Developer, st: State) -> None:
 @router.post("/hooks/{token}", status_code=status.HTTP_202_ACCEPTED)
 async def fire_trigger(token: str, request: Request, st: State) -> dict[str, str]:
     """Public: the token in the url is the credential."""
+    await st.limiter.hit(HOOK_IP, client_ip(request))
+    await st.limiter.hit(HOOK_TRIGGER, token_hash(token)[:16])
     t = await st.accounts.get_trigger(token_hash(token))
     if t is None:
         raise HTTPException(404, "unknown trigger")

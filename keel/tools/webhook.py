@@ -26,6 +26,7 @@ from typing import Any
 
 import httpx
 
+from keel.security.net import safe_client
 from keel.tools.registry import Effect, Tool
 from keel.worker.loop import ToolError
 
@@ -57,7 +58,8 @@ class WebhookTool:
     client: httpx.AsyncClient | None = field(default=None, repr=False)
 
     def _client(self) -> httpx.AsyncClient:
-        return self.client or httpx.AsyncClient(timeout=self.timeout_s)
+        # webhooks never follow redirects: a 3xx could point the signed request somewhere private
+        return self.client or safe_client(timeout=self.timeout_s, follow_redirects=False)
 
     async def call(self, idempotency_key: str, **args: Any) -> Any:
         body = json.dumps(args, separators=(",", ":"), sort_keys=True).encode()

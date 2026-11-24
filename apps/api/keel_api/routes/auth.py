@@ -15,8 +15,9 @@ from pydantic import BaseModel, EmailStr
 
 from keel.accounts.oauth import PROVIDERS, OAuthError, check_state, exchange, make_state
 from keel.accounts.service import SESSION_TTL, AuthError, SignedIn
+from keel.ratelimit import AUTH_CALLBACK_IP, SIGN_IN_EMAIL, SIGN_IN_IP
 
-from ..deps import SESSION_COOKIE, AppState, Signed, State
+from ..deps import SESSION_COOKIE, AppState, Signed, State, client_ip
 
 router = APIRouter(prefix="/v1", tags=["auth"])
 STATE_COOKIE = "keel_oauth_state"
@@ -63,7 +64,9 @@ class EmailIn(BaseModel):
 
 
 @router.post("/auth/email")
-async def email_link(body: EmailIn, st: State) -> dict[str, str]:
+async def email_link(body: EmailIn, st: State, request: Request) -> dict[str, str]:
+    await st.limiter.hit(SIGN_IN_IP, client_ip(request))
+    await st.limiter.hit(SIGN_IN_EMAIL, body.email.lower())
     token = await st.svc.magic_link(body.email)
     link = f"{st.public_url.rstrip('/')}/api/keel/v1/auth/email/callback?token={token}"
     await st.mailer.send(
@@ -77,7 +80,8 @@ async def email_link(body: EmailIn, st: State) -> dict[str, str]:
 
 
 @router.get("/auth/email/callback")
-async def email_callback(token: str, st: State) -> RedirectResponse:
+async def email_callback(token: str, st: State, request: Request) -> RedirectResponse:
+    await st.limiter.hit(AUTH_CALLBACK_IP, client_ip(request))
     try:
         signed: SignedIn = await st.svc.use_magic_link(token)
     except AuthError as e:
@@ -153,11 +157,13 @@ async def start(provider: str, st: State) -> RedirectResponse:
 async def callback(
     provider: str,
     st: State,
+    request: Request,
     code: str = "",
     state: str = "",
     error: str = "",
     keel_oauth_state: Annotated[str | None, Cookie()] = None,
 ) -> RedirectResponse:
+    await st.limiter.hit(AUTH_CALLBACK_IP, client_ip(request))
     p = PROVIDERS.get(provider)
     if p is None:
         raise HTTPException(404)

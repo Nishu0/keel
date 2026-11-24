@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 from keel.accounts.models import ToolDef
 from keel.core.ids import new_id
+from keel.security.net import BlockedAddress, check_url
 from keel.tools import mcp
 from keel.tools.org import registry_for, secret_reader, to_tool
 from keel.tools.registry import ToolInputError
@@ -45,12 +46,22 @@ class WebhookIn(BaseModel):
     timeout_s: float = Field(30.0, gt=0, le=300)
 
 
+async def _public_or_422(*urls: str | None) -> None:
+    for u in urls:
+        if u:
+            try:
+                await check_url(u)
+            except BlockedAddress as e:
+                raise HTTPException(422, str(e)) from e
+
+
 @router.post("/webhook", status_code=201)
 async def add_webhook(body: WebhookIn, c: ToolAdmin, st: State) -> dict[str, Any]:
     if not NAME.match(body.name):
         raise HTTPException(422, "tool names start with a letter and use letters, digits, - and _")
     if body.url.scheme != "https" and body.url.host not in ("localhost", "127.0.0.1"):
         raise HTTPException(422, "webhook tools must use https")
+    await _public_or_422(str(body.url), str(body.reconcile_url) if body.reconcile_url else None)
     if not await st.accounts.get_secret(c.org_id, body.signing_secret):
         raise HTTPException(
             422, f"add a secret named {body.signing_secret} first; keel signs every call with it"
@@ -84,6 +95,7 @@ class McpIn(BaseModel):
 async def add_mcp(body: McpIn, c: ToolAdmin, st: State) -> dict[str, Any]:
     if not re.match(r"^[a-z][a-z0-9-]{0,30}$", body.server):
         raise HTTPException(422, "server names are short, lowercase, letters, digits and -")
+    await _public_or_422(str(body.url))
     headers = {}
     if body.auth_secret:
         token = await secret_reader(st.accounts, sealer_or_503(st), c.org_id)(body.auth_secret)

@@ -11,6 +11,7 @@ from keel.core.events import TERMINAL, Event, EventType
 from keel.core.fold import fold
 from keel.core.ids import new_id
 from keel.core.status import TERMINAL_STATUSES, RunStatus
+from keel.ratelimit import RUN_CREATE_ORG
 from keel.store.base import RunDoc, SeqConflict, Store
 
 from ..deps import Caller, Developer, Operator, State, Viewer, audit
@@ -76,6 +77,7 @@ async def _append(
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_run(body: RunIn, c: Developer, st: State) -> RunOut:
+    await st.limiter.hit(RUN_CREATE_ORG, c.org_id)
     agent = await st.store.get_agent(c.org_id, body.agent_id)
     if agent is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "agent not found")

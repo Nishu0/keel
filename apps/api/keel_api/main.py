@@ -6,12 +6,14 @@ import asyncio
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from keel import __version__
 from keel.accounts.store import AccountStore, MemoryAccounts
 from keel.config import load_env
+from keel.ratelimit import TooMany
 from keel.store.base import Store
 from keel.store.memory import MemoryStore
 
@@ -42,7 +44,7 @@ def create_app(store: Store | None = None, accounts: AccountStore | None = None)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        for s in (store, accounts):
+        for s in (store, accounts, app.state.keel.limiter):
             if ensure := getattr(s, "ensure_indexes", None):
                 await ensure()
         if os.environ.get("KEEL_EMBEDDED_WORKER") != "1":
@@ -86,6 +88,14 @@ def create_app(store: Store | None = None, accounts: AccountStore | None = None)
 
     app = FastAPI(title="keel", version=__version__, lifespan=lifespan)
     app.state.keel = AppState(store=store, accounts=accounts)
+    if (db := getattr(accounts, "db", None)) is not None:
+        from keel.ratelimit import MongoLimiter
+
+        app.state.keel.limiter = MongoLimiter(db)  # shared by every api instance
+
+    @app.exception_handler(TooMany)
+    async def too_many(_: Request, e: TooMany) -> JSONResponse:
+        return JSONResponse({"detail": str(e)}, status_code=429, headers={"Retry-After": str(e.retry_after)})
 
     # single org dev mode: a key from the environment, never a hardcoded one
     if dev_key := os.environ.get("KEEL_DEV_API_KEY"):

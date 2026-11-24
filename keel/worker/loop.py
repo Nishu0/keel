@@ -24,11 +24,15 @@ from typing import Any
 from keel.core.agent import AgentConfig
 from keel.core.events import Event, EventType
 from keel.core.fold import RunState, apply, fold
+from keel.core.limits import EventTooLarge, bound_payload, cap
 from keel.core.status import TERMINAL_STATUSES, RunStatus
 from keel.providers.base import Provider, ToolCall, ToolSpec
 from keel.security.redact import Redactor
 from keel.store.base import RunDoc, Store, ToolCallDoc
 from keel.tools.registry import Effect, Registry, ToolInputError
+
+# model events go back to the provider byte for byte, so they're never trimmed
+UNTRIMMABLE = {EventType.MODEL_COMPLETED, EventType.MODEL_REQUESTED}
 
 
 class Outcome(StrEnum):
@@ -109,7 +113,8 @@ class RunDriver:
             seq=self.state.last_seq + 1,
             type=type,
             step=self.state.step if step is None else step,
-            payload=self.redactor(payload),  # nothing secret is ever written to the log
+            # nothing secret is ever written to the log, and nothing too big for it either
+            payload=bound_payload(self.redactor(payload), trimmable=type not in UNTRIMMABLE),
         )
         await self.store.append(ev, self.worker_id)  # raises LeaseLost / SeqConflict
         apply(self.state, ev)
@@ -203,17 +208,24 @@ class RunDriver:
                         EventType.RUN_FAILED, RunStatus.FAILED, Outcome.FAILED, error=str(e)
                     )
 
-                await self.emit(
-                    EventType.MODEL_COMPLETED,
-                    step=step,
-                    text=comp.text,
-                    tool_calls=[tc.model_dump(exclude={"id"}) for tc in comp.tool_calls],
-                    usage=comp.usage.model_dump(),
-                    cost_usd=comp.cost_usd,
-                    model=comp.model or self.agent.model,
-                    stop_reason=comp.stop_reason,
-                    raw=comp.raw,
-                )
+                try:
+                    await self.emit(
+                        EventType.MODEL_COMPLETED,
+                        step=step,
+                        text=comp.text,
+                        tool_calls=[tc.model_dump(exclude={"id"}) for tc in comp.tool_calls],
+                        usage=comp.usage.model_dump(),
+                        cost_usd=comp.cost_usd,
+                        model=comp.model or self.agent.model,
+                        stop_reason=comp.stop_reason,
+                        raw=comp.raw,
+                    )
+                except EventTooLarge as e:
+                    # can't record it, so it can't be replayed: fail cleanly rather than retry forever
+                    await self.emit(EventType.MODEL_FAILED, step=step, error=str(e))
+                    return await self._finish(
+                        EventType.RUN_FAILED, RunStatus.FAILED, Outcome.FAILED, error=str(e)
+                    )
                 if not comp.tool_calls:
                     return await self._finish(
                         EventType.RUN_COMPLETED, RunStatus.COMPLETED, Outcome.COMPLETED, output=comp.text
@@ -312,6 +324,7 @@ class RunDriver:
                 return None
             return await self._resolve_in_doubt(tc, tool.reconcile, error=f"{type(e).__name__}: {e}")
 
+        out = cap(out)  # before both writes, so the calls record and the log agree
         if external:
             await self.store.complete_call(self.org_id, cid, out)
         await self.emit(
@@ -413,6 +426,7 @@ class RunDriver:
                 found, error = None, f"reconcile failed: {e}"
             else:
                 if found is not None:
+                    found = cap(found)
                     await self.store.complete_call(self.org_id, cid, found)
                     await self.emit(
                         EventType.TOOL_COMPLETED, call_id=cid, name=tc.name, output=found, reconciled=True

@@ -41,7 +41,7 @@ def _model(cls: Any, d: dict[str, Any] | None) -> Any:
 class MongoAccounts:
     def __init__(self, url: str, db: str = "keel") -> None:
         self.client: AsyncMongoClient[dict[str, Any]] = AsyncMongoClient(url, tz_aware=True)
-        d = self.client[db]
+        d = self.db = self.client[db]
         self.users, self.orgs, self.members = d.users, d.orgs, d.memberships
         self.sessions, self.keys, self.invites = d.sessions, d.api_keys, d.invites
         self.links, self.secrets, self.tools = d.magic_links, d.secrets, d.tools

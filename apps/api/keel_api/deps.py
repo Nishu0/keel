@@ -19,6 +19,7 @@ from keel.accounts.email import Mailer, mailer_from_env
 from keel.accounts.models import User
 from keel.accounts.service import Accounts
 from keel.accounts.store import AccountStore, MemoryAccounts
+from keel.ratelimit import API_ORG, MemoryLimiter
 from keel.security.crypto import Sealer, SecretsNotConfigured
 from keel.store.base import AuditEntry, Store
 from keel.tools.registry import Registry
@@ -50,6 +51,7 @@ class AppState:
     )
     dev_keys: dict[str, DevKey] = field(default_factory=dict)  # prefix -> key
     mcp_http: Any = None  # httpx2 client factory for mcp; injectable in tests
+    limiter: Any = field(default_factory=MemoryLimiter)  # MongoLimiter when mongo is configured
     _sealer: Sealer | None = None
     _base_tools: Registry | None = None
 
@@ -102,9 +104,25 @@ def state(request: Request) -> AppState:
     return request.app.state.keel
 
 
+def client_ip(request: Request) -> str:
+    """The visitor's address. X-Forwarded-For is only believed behind a proxy we run
+    (KEEL_TRUST_FORWARDED=1: the web app's api proxy, or caddy), since anyone can send it."""
+    if os.environ.get("KEEL_TRUST_FORWARDED") == "1":
+        fwd = request.headers.get("x-forwarded-for")
+        if fwd:
+            return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 async def caller(request: Request, authorization: Annotated[str | None, Header()] = None) -> Caller:
+    c = await _identify(request, authorization)
+    await state(request).limiter.hit(API_ORG, c.org_id)
+    return c
+
+
+async def _identify(request: Request, authorization: str | None) -> Caller:
     st = state(request)
-    ip = request.client.host if request.client else None
+    ip = client_ip(request)
 
     if authorization and authorization.startswith("Bearer "):
         secret = authorization.removeprefix("Bearer ").strip()

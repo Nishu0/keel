@@ -7,8 +7,7 @@ import re
 from datetime import UTC, datetime
 from typing import Any
 
-import httpx
-
+from keel.security.net import BlockedAddress, safe_client
 from keel.tools.registry import Registry
 
 registry = Registry()
@@ -23,8 +22,11 @@ async def web_fetch(url: str) -> dict[str, Any]:
     """Fetch a public http(s) url and return its readable text, truncated to 20k characters."""
     if not url.startswith(("http://", "https://")):
         return {"error": "only http and https urls are allowed"}
-    async with httpx.AsyncClient(follow_redirects=True, timeout=15) as c:
-        r = await c.get(url, headers={"User-Agent": "keel-agent/0.1"})
+    try:
+        async with safe_client(follow_redirects=True, max_redirects=5, timeout=15) as c:
+            r = await c.get(url, headers={"User-Agent": "keel-agent/0.1"})
+    except BlockedAddress as e:
+        return {"error": str(e)}
     ctype = r.headers.get("content-type", "")
     body = r.text
     if "html" in ctype:

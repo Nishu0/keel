@@ -7,7 +7,8 @@
 
 const API = process.env.KEEL_API_URL;
 const DEV_KEY = process.env.KEEL_API_KEY || process.env.KEEL_DEV_API_KEY;
-const PASS_UP = ["content-type", "accept", "last-event-id"];
+// stripe-signature: the billing webhook comes through here and must arrive byte for byte, signed
+const PASS_UP = ["content-type", "accept", "last-event-id", "stripe-signature"];
 const PASS_DOWN = ["content-type", "cache-control", "location"];
 
 async function forward(request: Request, path: string[]): Promise<Response> {
@@ -27,6 +28,9 @@ async function forward(request: Request, path: string[]): Promise<Response> {
     const v = request.headers.get(h);
     if (v) headers.set(h, v);
   }
+  // the visitor's address, for per ip rate limits (the api trusts it with KEEL_TRUST_FORWARDED=1)
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() || request.headers.get("x-real-ip");
+  if (ip) headers.set("x-forwarded-for", ip);
   const cookie = request.headers.get("cookie");
   const session = cookie?.match(/(?:^|;\s*)keel_session=([^;]+)/)?.[1];
   const state = cookie?.match(/(?:^|;\s*)keel_oauth_state=([^;]+)/)?.[1];

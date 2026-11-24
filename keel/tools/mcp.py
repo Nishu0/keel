@@ -20,6 +20,7 @@ import httpx2
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from keel.security.net import guard
 from keel.worker.loop import ToolError
 
 HttpFactory = Callable[[dict[str, str]], httpx2.AsyncClient]
@@ -27,7 +28,11 @@ NAME_OK = re.compile(r"[^a-zA-Z0-9_-]+")
 
 
 def default_http(headers: dict[str, str]) -> httpx2.AsyncClient:
-    return httpx2.AsyncClient(headers=headers, timeout=httpx2.Timeout(30.0, read=300.0))
+    # the server url is user supplied, so connections to private addresses are refused
+    transport = guard(httpx2.AsyncHTTPTransport(trust_env=False))
+    return httpx2.AsyncClient(
+        headers=headers, timeout=httpx2.Timeout(30.0, read=300.0), transport=transport, trust_env=False
+    )
 
 
 @asynccontextmanager
