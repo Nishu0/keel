@@ -12,9 +12,10 @@ export function Nav() {
           <Wordmark />
         </Link>
         <div className="hidden items-center gap-7 text-[15px] text-muted-foreground md:flex">
-          <a href="#durability" className="transition-colors hover:text-foreground">How it works</a>
-          <a href="#tools" className="transition-colors hover:text-foreground">Tools</a>
-          <a href="#pricing" className="transition-colors hover:text-foreground">Pricing</a>
+          <Link href="/#durability" className="transition-colors hover:text-foreground">How it works</Link>
+          <Link href="/#tools" className="transition-colors hover:text-foreground">Tools</Link>
+          <Link href="/#pricing" className="transition-colors hover:text-foreground">Pricing</Link>
+          <Link href="/docs" className="transition-colors hover:text-foreground">Docs</Link>
           <a href="https://github.com/Nishu0/keel" className="transition-colors hover:text-foreground">GitHub</a>
         </div>
         <div className="ml-auto flex items-center gap-2">

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
+import { CommandPalette } from "@/components/command-palette";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
@@ -21,6 +22,7 @@ export default function AppLayout({ children }: LayoutProps<"/app">) {
         <SiteHeader />
         <div className="flex min-w-0 flex-1 flex-col">{children}</div>
       </SidebarInset>
+      <CommandPalette />
     </SidebarProvider>
   );
 }

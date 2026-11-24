@@ -205,6 +205,86 @@ function ConnectionsMock() {
   );
 }
 
+/* ---------------- 6. fork and compare ---------------- */
+
+function ForkMock() {
+  const row = (n: number, text: string, state: "same" | "diff" | "new") => (
+    <li className={cx("flex items-center gap-3 px-4 py-2", state === "diff" && "bg-[color-mix(in_oklab,var(--st-review)_7%,transparent)]")}>
+      <span className="tnum w-4 text-right text-[12px] text-faint">{n}</span>
+      {state === "same" ? <Check className="size-3.5 text-st-completed" /> : <GitBranch className="size-3.5 text-st-review" />}
+      <span className={cx("truncate text-[13px]", state === "same" ? "text-muted-foreground" : "text-foreground")}>{text}</span>
+    </li>
+  );
+  return (
+    <Panel className="py-2">
+      <div className="flex items-center gap-2 px-4 pb-2 text-[12px] text-muted-foreground">
+        <Mono className="text-ink-2">run_7Q2</Mono> forked at step 3, on agent v4
+      </div>
+      <ul>
+        {row(1, "read_book returned 0.41", "same")}
+        {row(2, "No news since 09:00", "same")}
+        {row(3, "Spread is too wide, waiting", "diff")}
+        {row(4, "Asked for approval at 0.39", "new")}
+      </ul>
+      <div className="mt-2 flex gap-4 border-t border-white/[0.06] px-4 pt-2.5 text-[12.5px] text-muted-foreground">
+        <span>Steps 4 → 4</span>
+        <span className="text-st-completed">Cost -38%</span>
+      </div>
+    </Panel>
+  );
+}
+
+/* ---------------- 7. schedules and triggers ---------------- */
+
+function AutomationMock() {
+  return (
+    <Panel className="space-y-3 p-4">
+      <div className="rounded-lg border border-white/[0.08] px-3.5 py-3">
+        <p className="text-[13.5px] text-foreground">Morning digest</p>
+        <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+          <Mono className="text-ink-2">0 9 * * 1-5</Mono> · next Tue 09:00 UTC
+        </p>
+      </div>
+      <div className="rounded-lg border border-white/[0.08] px-3.5 py-3">
+        <p className="text-[13.5px] text-foreground">New GitHub issues</p>
+        <p className="mt-1 truncate font-mono text-[11.5px] text-muted-foreground">POST /hooks/trg_••••</p>
+        <p className="mt-1.5 flex items-center gap-1.5 text-[12.5px] text-ink-2">
+          <CornerDownRight className="size-3.5 text-faint" /> Triage issue #42: Crash on start
+        </p>
+      </div>
+    </Panel>
+  );
+}
+
+/* ---------------- 8. handoffs ---------------- */
+
+function HandoffMock() {
+  return (
+    <Panel className="p-4">
+      <div className="flex items-center gap-2 text-[13px]">
+        <i className="size-1.5 rounded-full bg-st-review" />
+        <span className="text-foreground">planner</span>
+        <span className="text-muted-foreground">waiting, no worker held</span>
+      </div>
+      <div className="ml-[3px] mt-2 space-y-2 border-l border-white/[0.1] pl-4">
+        <div className="flex items-center gap-2 text-[13px]">
+          <Mono className="text-ink-2">handoff__researcher</Mono>
+        </div>
+        <div className="rounded-lg border border-white/[0.08] px-3 py-2.5">
+          <p className="flex items-center gap-2 text-[13px] text-foreground">
+            <Sparkles className="size-3.5 text-faint" /> researcher
+            <span className="ml-auto text-[12px] text-st-completed">Completed</span>
+          </p>
+          <p className="mt-1 truncate text-[12.5px] text-muted-foreground">Found 3 sources. Rates held at 4.25%.</p>
+        </div>
+        <p className="flex items-center gap-1.5 text-[12.5px] text-ink-2">
+          <CornerDownRight className="size-3.5 text-faint" /> answer returned as the tool result
+        </p>
+      </div>
+    </Panel>
+  );
+}
+
 /* ---------------- grid ---------------- */
 
 export function Bento() {
@@ -222,11 +302,22 @@ export function Bento() {
         <Card lead="Every step" title="on the record" sub="An append only log of what the model saw, what it called, and what came back. Live, then replayable.">
           <LogMock />
         </Card>
-        <Card lead="A person in the loop" title="when it matters" sub="Gate any tool behind approval. The run pauses, holds no worker, and resumes the moment someone decides.">
+        <Card lead="A person in the loop" title="when it matters" sub="Gate any tool behind approval. The run pauses, holds no worker, pings Slack or email, and resumes the moment someone decides.">
           <ApprovalMock />
         </Card>
         <Card lead="Any model, any tool" title="you already run" sub="Bring Claude, your webhooks and MCP servers. Code runs in a sandbox with no network.">
           <ConnectionsMock />
+        </Card>
+      </div>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card lead="Fork from any step" title="and see what changed" sub="Rerun from step N with a new prompt or different data. The steps before it are reused, then compare the two runs side by side.">
+          <ForkMock />
+        </Card>
+        <Card lead="Runs that start themselves" title="on a cron or a url" sub="Schedule an agent, or give it a secret url that GitHub, a form or your own code can post to. Each due time runs exactly once.">
+          <AutomationMock />
+        </Card>
+        <Card lead="Agents that delegate" title="to other agents" sub="Hand a task to another agent. The child runs on its own while the parent waits for free, then gets the answer back.">
+          <HandoffMock />
         </Card>
       </div>
     </div>

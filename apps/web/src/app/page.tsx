@@ -2,13 +2,13 @@ import { Check } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { CodeWindow, RunSnippet, ToolSnippet } from "@/components/landing/code";
-import { Dither } from "@/components/landing/dither";
+import { Footer } from "@/components/landing/footer";
 import { Nav } from "@/components/landing/nav";
 import { AppWindow } from "@/components/landing/app-window";
 import { Bento } from "@/components/landing/bento";
 import { Fits } from "@/components/landing/fits";
 import { DotField } from "@/components/landing/dot-field";
-import { ButtonLink, EffectTag, Wordmark } from "@/components/kit";
+import { ButtonLink, EffectTag } from "@/components/kit";
 
 export default function Home() {
   return (
@@ -21,7 +21,6 @@ export default function Home() {
         <Effects />
         <SelfHost />
         <Pricing />
-        <Closing />
       </main>
       <Footer />
     </>
@@ -195,19 +194,20 @@ function SelfHost() {
 
 /* ---------------- pricing ---------------- */
 
+// mirrors keel/accounts/plans.py; these are the limits the api enforces
 const PLANS = [
   {
     name: "Free",
     price: "$0",
     note: "For trying it on a real agent.",
-    items: ["1 member", "2 runs at a time", "Bring your own model key", "60 sandbox minutes a month"],
+    items: ["1 member", "2 runs at a time", "500 runs and 2M tokens a month", "60 sandbox minutes", "Bring your own model key"],
     cta: "Start free",
   },
   {
     name: "Pro",
     price: "$40",
     note: "For a small team shipping agents.",
-    items: ["5 members", "20 runs at a time", "1,000 sandbox minutes a month", "Use keel's model access, billed per token"],
+    items: ["5 members", "20 runs at a time", "20,000 runs and 100M tokens a month", "1,000 sandbox minutes", "Use keel's model access"],
     cta: "Start with Pro",
     featured: true,
   },
@@ -215,7 +215,7 @@ const PLANS = [
     name: "Team",
     price: "Talk to us",
     note: "For agents your company depends on.",
-    items: ["Unlimited members", "SSO and audit log export", "Higher limits on everything", "Dedicated sandbox nodes"],
+    items: ["Unlimited members", "100 runs at a time", "200,000 runs and 1B tokens a month", "10,000 sandbox minutes", "Use keel's model access"],
     cta: "Contact us",
   },
 ];
@@ -227,7 +227,7 @@ function Pricing() {
         <H2>Pay for runs, not seats you don&apos;t use.</H2>
         <div className="mt-14 grid gap-px overflow-hidden rounded-lg border border-rule-strong bg-rule md:grid-cols-3">
           {PLANS.map((p) => (
-            <div key={p.name} className={`flex flex-col p-7 ${p.featured ? "bg-white/[0.03]" : "bg-background"}`}>
+            <div key={p.name} className="flex flex-col bg-background p-7">
               <div className="flex items-baseline justify-between">
                 <h3 className="text-[15px] font-medium text-ink">{p.name}</h3>
                 {p.featured && <span className="text-[12.5px] text-muted-foreground">Most teams start here</span>}
@@ -251,57 +251,11 @@ function Pricing() {
             </div>
           ))}
         </div>
-      </Wrap>
-    </section>
-  );
-}
-
-/* ---------------- closing + footer ---------------- */
-
-function Closing() {
-  return (
-    <section className="relative overflow-hidden border-t border-rule">
-      <Dither className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.1]" />
-      <Wrap className="relative flex flex-col items-start gap-8 py-28 sm:py-36">
-        <p className="max-w-[16ch] font-serif text-[48px] leading-[1.02] text-ink sm:text-[64px]">
-          Make your agents boring to operate.
+        <p className="mt-6 text-[14px] text-muted-foreground">
+          Every plan includes crash safe runs, at most once tools, approvals, replay, fork and compare, schedules and triggers, and MCP and webhook tools. Self hosting is free.
         </p>
-        <div className="flex flex-wrap gap-3">
-          <ButtonLink href="/app" variant="primary" size="lg">Start a run</ButtonLink>
-          <ButtonLink href="https://github.com/Nishu0/keel" variant="secondary" size="lg">Read the source</ButtonLink>
-        </div>
       </Wrap>
     </section>
   );
 }
 
-function Footer() {
-  const cols: [string, [string, string][]][] = [
-    ["Product", [["Run viewer", "/app/runs"], ["Agents", "/app/agents"], ["Pricing", "#pricing"]]],
-    ["Developers", [["GitHub", "https://github.com/Nishu0/keel"], ["Python SDK", "#"], ["TypeScript SDK", "#"]]],
-    ["Company", [["Status", "#"], ["Security", "#"], ["Contact", "#"]]],
-  ];
-  return (
-    <footer className="border-t border-rule">
-      <Wrap className="grid gap-10 py-14 md:grid-cols-[1.4fr_repeat(3,1fr)]">
-        <div>
-          <Wordmark />
-          <p className="mt-3 max-w-[32ch] text-[13.5px] text-muted-foreground">A durable runtime for agents.</p>
-        </div>
-        {cols.map(([h, links]) => (
-          <div key={h}>
-            <p className="text-[13px] text-muted-foreground">{h}</p>
-            <ul className="mt-3 space-y-2 text-[14px]">
-              {links.map(([l, href]) => (
-                <li key={l}>
-                  <a href={href} className="text-ink-2 hover:text-ink">{l}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </Wrap>
-      <Wrap className="border-t border-rule py-6 text-[12.5px] text-faint">© 2026 keel</Wrap>
-    </footer>
-  );
-}

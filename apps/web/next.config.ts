@@ -6,6 +6,9 @@ import type { NextConfig } from "next";
 loadEnvConfig(path.resolve(process.cwd(), "../.."), process.env.NODE_ENV !== "production", undefined, true);
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [{ source: "/docs", destination: "/docs/quickstart", permanent: false }];
+  },
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
