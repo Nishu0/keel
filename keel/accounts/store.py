@@ -302,3 +302,6 @@ class MemoryAccounts:
     async def touch_trigger(self, trigger_id: str) -> None:
         if trigger_id in self.triggers:
             self.triggers[trigger_id].last_fired_at = utcnow()
+
+    async def ping(self) -> None:
+        return None

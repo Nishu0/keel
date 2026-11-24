@@ -123,6 +123,26 @@ def create_app(store: Store | None = None, accounts: AccountStore | None = None)
     async def healthz() -> dict[str, str]:
         return {"status": "ok", "version": __version__}
 
+    @app.get("/readyz", tags=["meta"])
+    async def readyz() -> JSONResponse:
+        """Ready to take traffic: the database answers. Also says how many workers are alive,
+        which doesn't affect readiness (the api is useful without workers, runs just queue)."""
+        checks: dict[str, str] = {}
+        ok = True
+        for name, s in (("store", store), ("accounts", accounts)):
+            ping = getattr(s, "ping", None)
+            if ping is None:
+                continue
+            try:
+                await asyncio.wait_for(ping(), timeout=2)
+                checks[name] = "ok"
+            except Exception as e:
+                checks[name] = f"down: {type(e).__name__}"
+                ok = False
+        workers = await store.live_workers() if ok else []
+        body = {"status": "ready" if ok else "not ready", "checks": checks, "workers": len(workers)}
+        return JSONResponse(body, status_code=200 if ok else 503)
+
     return app
 
 

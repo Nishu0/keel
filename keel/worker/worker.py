@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 
 from keel.core.agent import AgentConfig
 from keel.core.status import RunStatus
@@ -114,7 +116,17 @@ async def serve(
     active: set[asyncio.Task] = set()
     log.info("%s serving, concurrency %d", worker.id, concurrency)
     last_tick = 0.0
+    last_beat = 0.0
+    beat_file = Path(os.environ.get("KEEL_WORKER_HEARTBEAT_FILE", "/tmp/keel-worker-alive"))
     while not stop.is_set():
+        now = asyncio.get_running_loop().time()
+        if now - last_beat >= 5:
+            last_beat = now
+            try:
+                await store.worker_beat(worker.id, len(active))
+                beat_file.touch()  # the container healthcheck looks at this file's age
+            except Exception:
+                log.exception("worker heartbeat failed")
         if tick and asyncio.get_running_loop().time() - last_tick >= tick_every_s:
             last_tick = asyncio.get_running_loop().time()
             try:

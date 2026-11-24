@@ -26,6 +26,7 @@ class MemoryStore:
         self._calls: dict[str, ToolCallDoc] = {}
         self._audit: list[AuditEntry] = []
         self._agents: dict[tuple[str, str, int], AgentConfig] = {}  # (org, id, version)
+        self._workers: dict[str, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
 
     def _run(self, org_id: str, run_id: str) -> RunDoc:
@@ -176,3 +177,13 @@ class MemoryStore:
         r = self._runs[run_id]
         if r.lease:
             r.lease.expires_at = self.clock() - timedelta(seconds=1)
+
+    async def ping(self) -> None:
+        return None
+
+    async def worker_beat(self, worker_id: str, active: int) -> None:
+        self._workers[worker_id] = {"worker_id": worker_id, "active": active, "seen_at": self.clock()}
+
+    async def live_workers(self, within_s: float = 60) -> list[dict[str, Any]]:
+        cutoff = self.clock() - timedelta(seconds=within_s)
+        return [w for w in self._workers.values() if w["seen_at"] >= cutoff]

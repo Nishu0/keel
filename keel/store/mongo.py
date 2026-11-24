@@ -36,6 +36,7 @@ class MongoStore:
 
     async def ensure_indexes(self) -> None:
         await self.run_events.create_index([("run_id", ASCENDING), ("seq", ASCENDING)], unique=True)
+        await self.db.workers.create_index("seen_at", expireAfterSeconds=86_400)
         await self.runs.create_index([("org_id", ASCENDING), ("created_at", DESCENDING)])
         await self.runs.create_index([("status", ASCENDING), ("lease.expires_at", ASCENDING)])
         await self.runs.create_index([("parent_run_id", ASCENDING)])
@@ -269,3 +270,18 @@ def _run(d: dict[str, Any]) -> RunDoc:
         parent_run_id=d.get("parent_run_id"),
         agent_version=d.get("agent_version"),
     )
+
+    async def ping(self) -> None:
+        await self.client.admin.command("ping")
+
+    async def worker_beat(self, worker_id: str, active: int) -> None:
+        await self.db.workers.update_one(
+            {"_id": worker_id}, {"$set": {"active": active, "seen_at": _now()}}, upsert=True
+        )
+
+    async def live_workers(self, within_s: float = 60) -> list[dict[str, Any]]:
+        cutoff = _now() - timedelta(seconds=within_s)
+        return [
+            {"worker_id": d["_id"], "active": d.get("active", 0), "seen_at": d["seen_at"]}
+            async for d in self.db.workers.find({"seen_at": {"$gte": cutoff}})
+        ]

@@ -31,10 +31,24 @@ services:
       KEEL_MONGO_URL: mongodb://mongo:27017
       KEEL_DEV_API_KEY: ${KEEL_DEV_API_KEY:?set KEEL_DEV_API_KEY in deploy/.env}
       KEEL_WEB_ORIGIN: http://localhost:3000
+      KEEL_TRUST_FORWARDED: "1"  # only the web app's proxy reaches the api
+    healthcheck:
+      # ready = mongo answers; a failing check takes the instance out of rotation
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(urllib.request.urlopen('http://localhost:8000/readyz', timeout=3).status != 200)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   worker:
     <<: *python
     command: ["python", "-m", "keel.worker"]
+    healthcheck:
+      # the serve loop touches this file every 5s; a stuck loop goes stale and gets restarted
+      test: ["CMD", "python", "-c", "import os,time,sys; sys.exit(time.time() - os.path.getmtime('/tmp/keel-worker-alive') > 60)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     deploy:
       replicas: 2
 

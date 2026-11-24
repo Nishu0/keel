@@ -260,3 +260,6 @@ class MongoAccounts:
 
     async def touch_trigger(self, trigger_id: str) -> None:
         await self.triggers.update_one({"_id": trigger_id}, {"$set": {"last_fired_at": utcnow()}})
+
+    async def ping(self) -> None:
+        await self.client.admin.command("ping")
